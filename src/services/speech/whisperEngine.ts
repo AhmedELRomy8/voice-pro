@@ -128,3 +128,25 @@ export async function isWhisperModelCached(modelName = 'onnx-community/whisper-t
   }
   return false;
 }
+
+// Decode audio file (WAV, MP3, M4A, OGG) to 16kHz mono Float32Array for local transcription
+export async function decodeAudioFileTo16k(audioBlob: Blob): Promise<{ audioFloat32: Float32Array; durationSeconds: number }> {
+  const arrayBuffer = await audioBlob.arrayBuffer();
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  const audioCtx = new AudioContextClass();
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  const channelData = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+  const durationSeconds = Math.round(audioBuffer.duration);
+  audioCtx.close();
+
+  const { resampleTo16k } = await import('./audioRecorder');
+  const final16k = resampleTo16k(channelData, sampleRate);
+
+  return {
+    audioFloat32: final16k,
+    durationSeconds,
+  };
+}
+

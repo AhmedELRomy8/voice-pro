@@ -57,7 +57,16 @@ export class AudioRecorder {
 
     // Whisper requires 16000Hz mono audio
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    this.audioContext = new AudioContextClass({ sampleRate: 16000 });
+    try {
+      this.audioContext = new AudioContextClass({ sampleRate: 16000 });
+    } catch {
+      // Some browsers (e.g. Safari) don't support custom sampleRate in constructor
+      this.audioContext = new AudioContextClass();
+    }
+
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
 
     this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
     this.analyserNode = this.audioContext.createAnalyser();
@@ -113,6 +122,7 @@ export class AudioRecorder {
     }
 
     const durationSeconds = this.getDurationSeconds();
+    const actualSampleRate = this.audioContext?.sampleRate || 16000;
     this.cleanup();
 
     // Flatten all Float32 chunks into one contiguous buffer
@@ -123,11 +133,14 @@ export class AudioRecorder {
       offset += chunk.length;
     }
 
+    // High quality resample to 16000 Hz if hardware recorded at 44.1k or 48k
+    const final16kSamples = resampleTo16k(merged, actualSampleRate);
+
     // Convert to standard 16kHz 16-bit PCM WAV Blob
-    const wavBlob = encodeWav(merged, 16000);
+    const wavBlob = encodeWav(final16kSamples, 16000);
 
     return {
-      audioFloat32: merged,
+      audioFloat32: final16kSamples,
       wavBlob,
       durationSeconds,
     };
@@ -251,4 +264,23 @@ function writeString(view: DataView, offset: number, string: string): void {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
+}
+
+// Resample audio Float32Array from any sample rate to 16,000 Hz using linear interpolation
+export function resampleTo16k(audioData: Float32Array, origSampleRate: number): Float32Array {
+  if (!origSampleRate || origSampleRate === 16000 || audioData.length === 0) {
+    return audioData;
+  }
+  const ratio = origSampleRate / 16000;
+  const newLength = Math.round(audioData.length / ratio);
+  const result = new Float32Array(newLength);
+
+  for (let i = 0; i < newLength; i++) {
+    const origIndex = i * ratio;
+    const indexFloor = Math.floor(origIndex);
+    const indexCeil = Math.min(audioData.length - 1, Math.ceil(origIndex));
+    const fraction = origIndex - indexFloor;
+    result[i] = audioData[indexFloor] * (1 - fraction) + audioData[indexCeil] * fraction;
+  }
+  return result;
 }
