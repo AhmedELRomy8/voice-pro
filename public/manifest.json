@@ -1,0 +1,20 @@
+{
+  "name": "Voice & Document Tools | أدوات الصوت والمستندات",
+  "short_name": "Voice Pro",
+  "description": "Local speech to text, OCR image to text, Word and Excel extraction without cloud or AI subscriptions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "dir": "auto",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
