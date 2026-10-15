@@ -8,6 +8,13 @@
     <meta name="description" content="Voice & Document Tools - تحويل الصوت إلى نص واستخراج النصوص والجداول محلياً دون سحابة أو ذكاء اصطناعي توليدي" />
     <link rel="manifest" href="/manifest.json" />
     <title>Voice & Document Tools | أدوات الصوت والمستندات</title>
+    <!-- Preload local ONNX Runtime Web bundle for local WebAssembly speech recognition -->
+    <script src="/ort.all.min.js"></script>
+    <script>
+      if (window.ort) {
+        window.ort.env.wasm.wasmPaths = '/';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
