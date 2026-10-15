@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: './',
+  base: '/voice-pro/',
   plugins: [react()],
   optimizeDeps: {
     exclude: ['@huggingface/transformers', 'onnxruntime-node'],
