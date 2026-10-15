@@ -5,10 +5,10 @@ import {
   Pause,
   Play,
   FileDown,
-  Volume2,
   AlertCircle,
   Sparkles,
-  Command
+  Command,
+  RotateCcw
 } from 'lucide-react';
 import { Modal } from '../layout/Modal';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -34,7 +34,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
   onReplaceText,
   onExecuteCommand,
 }) => {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
 
   const [recorderState, setRecorderState] = useState<RecorderState>({
     isRecording: false,
@@ -50,6 +50,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
   const [transcriptText, setTranscriptText] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [detectedCommand, setDetectedCommand] = useState<VoiceCommandMatch | null>(null);
+  const [recordedWavBlob, setRecordedWavBlob] = useState<Blob | null>(null);
 
   const recorderRef = useRef<AudioRecorder | null>(null);
   const audioFloat32Ref = useRef<Float32Array | null>(null);
@@ -73,6 +74,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
   const handleStart = async () => {
     setErrorMessage(null);
     setDetectedCommand(null);
+    setRecordedWavBlob(null);
     try {
       recorderRef.current = new AudioRecorder((state) => {
         setRecorderState(state);
@@ -95,24 +97,16 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
     }
   };
 
-  const handleStopAndTranscribe = async () => {
-    if (!recorderRef.current) return;
+  const runTranscription = async (audioFloat32: Float32Array) => {
+    setIsTranscribing(true);
+    setTranscriptionProgress(t.transcribing);
+    setErrorMessage(null);
+
     try {
-      const { audioFloat32, durationSeconds } = await recorderRef.current.stop();
-      audioFloat32Ref.current = audioFloat32;
-
-      if (durationSeconds === 0 || audioFloat32.length === 0) {
-        setErrorMessage(t.noAudioRecorded);
-        return;
-      }
-
-      setIsTranscribing(true);
-      setTranscriptionProgress(t.transcribing);
-
       const result = await transcribeAudio(
         audioFloat32,
         speechLanguage,
-        'Xenova/whisper-tiny',
+        'onnx-community/whisper-tiny',
         (p: WhisperProgress) => {
           setTranscriptionProgress(p.status);
         }
@@ -128,10 +122,41 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
         }
       }
     } catch (err: any) {
+      // Preserve existing text if transcription fails!
       setErrorMessage(err.message || 'فشل تحويل الصوت / Transcription failed');
     } finally {
       setIsTranscribing(false);
       setTranscriptionProgress('');
+    }
+  };
+
+  const handleStopAndTranscribe = async () => {
+    if (!recorderRef.current) return;
+    try {
+      const { audioFloat32, wavBlob, durationSeconds } = await recorderRef.current.stop();
+      audioFloat32Ref.current = audioFloat32;
+      setRecordedWavBlob(wavBlob);
+
+      if (durationSeconds === 0 || audioFloat32.length === 0) {
+        setErrorMessage(t.noAudioRecorded);
+        return;
+      }
+
+      await runTranscription(audioFloat32);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'فشل إيقاف التسجيل');
+    }
+  };
+
+  const handleRetryTranscription = async () => {
+    if (audioFloat32Ref.current && audioFloat32Ref.current.length > 0) {
+      await runTranscription(audioFloat32Ref.current);
+    }
+  };
+
+  const handleDownloadWav = () => {
+    if (recordedWavBlob) {
+      downloadBlob(recordedWavBlob, 'recorded_audio.wav');
     }
   };
 
@@ -194,6 +219,12 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
                   <span>Word</span>
                 </button>
               </>
+            )}
+            {recordedWavBlob && (
+              <button className="btn btn-secondary btn-sm" onClick={handleDownloadWav} title="حفظ التسجيل كملف WAV">
+                <FileDown size={14} />
+                <span>حفظ الصوت (WAV)</span>
+              </button>
             )}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -270,7 +301,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             {!recorderState.isRecording ? (
               <button
                 className="btn btn-primary"
@@ -305,6 +336,18 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
                 </button>
               </>
             )}
+
+            {!recorderState.isRecording && audioFloat32Ref.current && (
+              <button
+                className="btn btn-secondary"
+                onClick={handleRetryTranscription}
+                disabled={isTranscribing}
+                title="إعادة محاولة التحويل للنص"
+              >
+                <RotateCcw size={16} />
+                <span>إعادة المحاولة</span>
+              </button>
+            )}
           </div>
 
           {/* Progress / Status feedback */}
@@ -316,9 +359,23 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
           )}
 
           {errorMessage && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger)', fontSize: '0.85rem' }}>
-              <AlertCircle size={16} />
-              <span>{errorMessage}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', color: 'var(--danger)', fontSize: '0.85rem', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={16} />
+                <span>{errorMessage}</span>
+              </div>
+              {recordedWavBlob && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadWav}>
+                    <FileDown size={14} />
+                    <span>حفظ التسجيل الصوتي (WAV)</span>
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={handleRetryTranscription}>
+                    <RotateCcw size={14} />
+                    <span>إعادة المحاولة</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

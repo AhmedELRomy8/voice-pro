@@ -8,10 +8,10 @@ export interface WhisperProgress {
 export type WhisperProgressCallback = (p: WhisperProgress) => void;
 
 let transcriberPromise: Promise<any> | null = null;
-let currentModelName = 'Xenova/whisper-tiny';
+let currentModelName = 'onnx-community/whisper-tiny';
 
 export async function getWhisperTranscriber(
-  modelName = 'Xenova/whisper-tiny',
+  modelName = 'onnx-community/whisper-tiny',
   onProgress?: WhisperProgressCallback
 ): Promise<any> {
   if (transcriberPromise && currentModelName === modelName) {
@@ -21,31 +21,33 @@ export async function getWhisperTranscriber(
   currentModelName = modelName;
 
   transcriberPromise = (async () => {
-    // Dynamically import @xenova/transformers so it loads only when speech is used
-    const { pipeline, env } = await import('@xenova/transformers');
-
-    // Configure local browser caching
-    env.allowLocalModels = false;
-    env.useBrowserCache = true;
-
     if (onProgress) {
-      onProgress({ status: 'جارٍ تهيئة نموذج Whisper المحلي... / Initializing local Whisper model...' });
+      onProgress({ status: 'جارٍ تهيئة محرك Whisper المحلي... / Initializing Whisper engine...' });
     }
 
     try {
+      // Dynamically import @huggingface/transformers for browser WebAssembly inference
+      const { pipeline, env } = await import('@huggingface/transformers');
+
+      // Configure local caching in browser Cache API / IndexedDB
+      env.allowLocalModels = false;
+      env.useBrowserCache = true;
+
       const transcriber = await pipeline('automatic-speech-recognition', modelName, {
-        quantized: true,
+        dtype: 'q8', // Quantized 8-bit for fast local execution and low memory footprint (~39MB)
+        device: 'wasm',
         progress_callback: (item: any) => {
           if (onProgress) {
             let statusText = 'جارٍ تحميل النموذج محلياً... / Downloading model...';
             if (item.status === 'progress' && item.file) {
-              statusText = `تنزيل ${item.file} (${Math.round(item.progress || 0)}%)`;
-            } else if (item.status === 'ready') {
+              const pct = Math.round((item.loaded / (item.total || 1)) * 100);
+              statusText = `تنزيل ${item.file} (${pct}%)`;
+            } else if (item.status === 'ready' || item.status === 'done') {
               statusText = 'النموذج جاهز في ذاكرة المتصفح / Model ready';
             }
             onProgress({
               status: statusText,
-              progress: item.progress ? item.progress / 100 : undefined,
+              progress: item.total ? item.loaded / item.total : undefined,
             });
           }
         },
@@ -54,8 +56,9 @@ export async function getWhisperTranscriber(
       return transcriber;
     } catch (err: any) {
       transcriberPromise = null;
+      console.error('Whisper local load error:', err);
       throw new Error(
-        `تعذر تحميل نموذج Whisper محلياً: ${err.message || err}. يرجى التحقق من توفر ذاكرة كافية في المتصفح.`
+        `تعذر تشغيل نموذج Whisper محلياً (${err.message || err}). يمكنك حفظ التسجيل كملف WAV وتشغيله عبر تطبيق الويندوز.`
       );
     }
   })();
@@ -66,7 +69,7 @@ export async function getWhisperTranscriber(
 export async function transcribeAudio(
   audioFloat32: Float32Array,
   language: 'ar' | 'en' | 'auto' = 'ar',
-  modelName = 'Xenova/whisper-tiny',
+  modelName = 'onnx-community/whisper-tiny',
   onProgress?: WhisperProgressCallback
 ): Promise<SpeechResult> {
   if (audioFloat32.length === 0) {
@@ -106,7 +109,7 @@ export async function transcribeAudio(
   };
 }
 
-export async function isWhisperModelCached(modelName = 'Xenova/whisper-tiny'): Promise<boolean> {
+export async function isWhisperModelCached(modelName = 'onnx-community/whisper-tiny'): Promise<boolean> {
   if ('caches' in window) {
     try {
       const keys = await window.caches.keys();
