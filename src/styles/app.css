@@ -54,28 +54,34 @@
   padding: 0;
 }
 
+html, body {
+  min-height: 100vh;
+  width: 100%;
+}
+
 body {
   font-family: var(--font-arabic);
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
 }
 
 /* ==========================================================================
-   App Master Layout (Sidebar + Main Workspace)
+   Master App Layout (Sidebar + Main Workspace)
    ========================================================================== */
 .vox-app-layout {
   display: flex;
+  flex-direction: row;
   min-height: 100vh;
   width: 100%;
   background-color: var(--bg-main);
+  position: relative;
 }
 
 /* Sidebar */
 .vox-sidebar {
-  width: 250px;
+  width: 255px;
   background-color: var(--sidebar-bg);
   border-inline-end: 1px solid var(--sidebar-border);
   display: flex;
@@ -226,6 +232,7 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 100vh;
 }
 
 .vox-top-header {
@@ -335,19 +342,131 @@ body {
   font-weight: 700;
 }
 
-.vox-user-avatar {
-  width: 34px;
-  height: 34px;
+/* User Avatar & Google Auth in Header */
+.vox-user-avatar-container {
+  position: relative;
+}
+
+.vox-user-avatar-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.vox-user-img {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background-color: #e2e8f0;
-  color: var(--text-muted);
+  border: 2px solid var(--primary);
+}
+
+.vox-user-initials {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.vox-login-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.vox-login-pill-btn:hover {
+  background-color: #1e293b;
+}
+
+.vox-user-dropdown-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  background-color: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  padding: 0.85rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vox-user-dropdown-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.vox-user-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.vox-user-email {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.vox-google-connected-pill {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #2563eb;
+  background-color: #eff6ff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  width: fit-content;
+}
+
+.vox-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-light);
+  margin: 0.25rem 0;
+}
+
+.vox-dropdown-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+}
+
+.vox-dropdown-action-btn:hover {
+  background-color: var(--bg-muted);
+}
+
 /* ==========================================================================
-   Workspace Content
+   Workspace Content & Dedicated View Pages
    ========================================================================== */
 .vox-workspace {
   padding: 2rem;
@@ -357,6 +476,45 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  flex: 1;
+}
+
+/* Dedicated Page View Card (When switching tabs via sidebar) */
+.vox-page-view-card {
+  background-color: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem 2rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.vox-page-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 1.25rem;
+}
+
+.vox-page-view-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vox-page-view-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.vox-page-view-sub {
+  font-size: 0.92rem;
+  color: var(--text-muted);
 }
 
 .vox-greeting-header {
@@ -411,25 +569,10 @@ body {
 }
 
 /* Color Schemes */
-.card-speech {
-  background-color: #e8f8f2;
-  border-color: #c7f2de;
-}
-
-.card-ocr {
-  background-color: #f5f0ff;
-  border-color: #ebdfff;
-}
-
-.card-word {
-  background-color: #edf5ff;
-  border-color: #d6e8ff;
-}
-
-.card-excel {
-  background-color: #fff8eb;
-  border-color: #fde8c2;
-}
+.card-speech { background-color: #e8f8f2; border-color: #c7f2de; }
+.card-ocr { background-color: #f5f0ff; border-color: #ebdfff; }
+.card-word { background-color: #edf5ff; border-color: #d6e8ff; }
+.card-excel { background-color: #fff8eb; border-color: #fde8c2; }
 
 .vox-card-header {
   display: flex;
@@ -509,10 +652,6 @@ body {
 .arrow-ocr { color: #7c3aed; }
 .arrow-word { color: #2563eb; }
 .arrow-excel { color: #d97706; }
-
-.vox-card:hover .vox-card-arrow {
-  transform: translateX(isRtl ? -4px : 4px);
-}
 
 /* ==========================================================================
    Recent Files Section (Matching Screenshot)
@@ -678,12 +817,412 @@ body {
   background-color: var(--bg-muted);
 }
 
-.vox-dropdown-item.text-danger {
-  color: var(--danger);
+/* ==========================================================================
+   FIXED MODAL STYLES (CRITICAL: Fixes overlapping bug)
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(5px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.5rem !important;
+  z-index: 1000 !important;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background-color: #ffffff !important;
+  border-radius: var(--radius-lg) !important;
+  width: 100% !important;
+  max-width: 680px !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35) !important;
+  overflow: hidden !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.modal-content-lg {
+  max-width: 920px !important;
+}
+
+.modal-header {
+  padding: 1.15rem 1.75rem !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background-color: #ffffff !important;
+}
+
+.modal-title {
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  color: var(--text-main) !important;
+}
+
+.modal-body {
+  padding: 1.75rem !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.25rem !important;
+}
+
+.modal-footer {
+  padding: 1rem 1.75rem !important;
+  border-top: 1px solid var(--border-light) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 0.75rem !important;
+  background-color: var(--bg-muted) !important;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border-color: var(--border-light);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-muted);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--danger-hover);
+}
+
+.btn-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.btn-icon {
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
 }
 
 /* ==========================================================================
-   Speech to Text Screen (Matching Bottom-Left Screenshot)
+   GOOGLE AUTH LOGIN PAGE (Matching Screenshot Top-Left)
+   ========================================================================== */
+.vox-login-page-wrapper {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, #1e293b, #0f172a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 2000;
+}
+
+.vox-login-card {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  width: 100%;
+  max-width: 900px;
+  background-color: #ffffff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  .vox-login-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vox-login-hero-side {
+  background: linear-gradient(145deg, #0d1117, #161f30);
+  padding: 3rem 2.5rem;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.vox-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vox-brand-title-large {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.vox-login-hero-body {
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vox-hero-headline {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.vox-hero-tagline {
+  font-size: 0.92rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.vox-hero-features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.vox-hero-feat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.vox-hero-feat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vox-hero-feat-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.vox-hero-feat-desc {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.vox-hero-bottom-tag {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.vox-login-form-side {
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #ffffff;
+}
+
+.vox-auth-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vox-auth-main-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.vox-auth-sub-title {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+/* Google Sign-In Button */
+.vox-google-auth-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #dadce0;
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  color: #3c4043;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
+}
+
+.vox-google-auth-btn:hover {
+  background-color: #f8fafc;
+  border-color: #c0c4c9;
+  box-shadow: 0 2px 4px rgba(60, 64, 67, 0.12);
+}
+
+.vox-auth-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0.85rem 0;
+}
+
+.vox-auth-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--border-light);
+  z-index: 1;
+}
+
+.vox-auth-divider span {
+  font-size: 0.8rem;
+  color: var(--text-subtle);
+  background: #ffffff;
+  padding: 0 0.65rem;
+  position: relative;
+  z-index: 2;
+}
+
+.vox-login-inputs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.vox-input-wrap {
+  position: relative;
+}
+
+.vox-form-input {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.vox-form-input:focus {
+  border-color: #0f172a;
+}
+
+.vox-pw-toggle {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 0.75rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+}
+
+.vox-primary-submit-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.vox-primary-submit-btn:hover {
+  background-color: #1e293b;
+}
+
+.vox-guest-continue-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #ffffff;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.15s;
+}
+
+.vox-guest-continue-btn:hover {
+  background-color: var(--primary-light);
+}
+
+.vox-login-footnote {
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+  text-align: center;
+  margin-top: 0.65rem;
+}
+
+/* ==========================================================================
+   Speech Screen Elements
    ========================================================================== */
 .vox-stt-container {
   display: flex;
@@ -695,7 +1234,6 @@ body {
 .vox-screen-subtitle {
   font-size: 0.92rem;
   color: var(--text-muted);
-  margin-top: -0.5rem;
 }
 
 .vox-stt-options-row {
@@ -744,7 +1282,6 @@ body {
   cursor: pointer;
 }
 
-/* Central Record Circle */
 .vox-stt-record-card {
   display: flex;
   flex-direction: column;
@@ -838,7 +1375,6 @@ body {
 .mini-soundwave span:nth-child(3) { height: 18px; }
 .mini-soundwave span:nth-child(4) { height: 8px; }
 
-/* Control Buttons Row */
 .vox-stt-controls-row {
   display: flex;
   align-items: center;
@@ -859,24 +1395,16 @@ body {
   transition: all 0.15s;
 }
 
-.btn-start {
-  background-color: var(--primary);
-  color: #ffffff;
-}
+.btn-start { background-color: var(--primary); color: #ffffff; }
+.btn-start:hover { background-color: var(--primary-hover); }
 
-.btn-start:hover {
-  background-color: var(--primary-hover);
-}
-
-.btn-pause,
-.btn-stop {
+.btn-pause, .btn-stop {
   background-color: #ffffff;
   color: var(--text-main);
   border-color: var(--border-light);
 }
 
-.btn-pause:hover,
-.btn-stop:hover {
+.btn-pause:hover, .btn-stop:hover {
   background-color: var(--bg-muted);
 }
 
@@ -1252,257 +1780,6 @@ body {
   color: var(--text-muted);
 }
 
-/* ==========================================================================
-   Welcome / Landing Modal (Matching Top-Left Screenshot)
-   ========================================================================== */
-.vox-welcome-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  z-index: 100;
-}
-
-.vox-welcome-dialog {
-  display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  width: 100%;
-  max-width: 860px;
-  background-color: #ffffff;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  position: relative;
-}
-
-@media (max-width: 768px) {
-  .vox-welcome-dialog {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vox-welcome-close {
-  position: absolute;
-  top: 1rem;
-  inset-inline-end: 1rem;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  z-index: 10;
-}
-
-.vox-welcome-left-panel {
-  background: linear-gradient(145deg, #0d1117, #161f30);
-  padding: 2.5rem;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.vox-welcome-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.vox-brand-title-large {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.vox-welcome-hero-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  margin: 2rem 0;
-}
-
-.vox-welcome-hero-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-}
-
-.vox-welcome-hero-desc {
-  font-size: 0.92rem;
-  color: #94a3b8;
-  line-height: 1.6;
-}
-
-.vox-welcome-features-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
-.vox-welcome-feat-card {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.vox-welcome-feat-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.vox-welcome-feat-name {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.vox-welcome-feat-sub {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-.vox-welcome-bottom-tag {
-  font-size: 0.8rem;
-  color: #10b981;
-  font-weight: 600;
-}
-
-.vox-welcome-right-panel {
-  padding: 2.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.vox-auth-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.vox-auth-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: var(--text-main);
-}
-
-.vox-auth-sub {
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  margin-bottom: 1.25rem;
-}
-
-.vox-auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.vox-auth-input-group {
-  position: relative;
-}
-
-.vox-auth-input {
-  width: 100%;
-  padding: 0.65rem 1rem;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.92rem;
-  outline: none;
-}
-
-.vox-auth-input:focus {
-  border-color: #0f172a;
-}
-
-.password-toggle-btn {
-  position: absolute;
-  top: 50%;
-  inset-inline-end: 0.75rem;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: var(--text-subtle);
-  cursor: pointer;
-}
-
-.vox-auth-btn-primary {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #0f172a;
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 0.35rem;
-  transition: background-color 0.15s;
-}
-
-.vox-auth-btn-primary:hover {
-  background-color: #1e293b;
-}
-
-.vox-auth-or-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin: 0.5rem 0;
-}
-
-.vox-auth-or-divider span {
-  font-size: 0.82rem;
-  color: var(--text-subtle);
-  background: #ffffff;
-  padding: 0 0.5rem;
-}
-
-.vox-auth-btn-guest {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #ffffff;
-  color: var(--primary);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: all 0.15s;
-}
-
-.vox-auth-btn-guest:hover {
-  background-color: var(--primary-light);
-}
-
-.vox-auth-footer-note {
-  font-size: 0.78rem;
-  color: var(--text-subtle);
-  text-align: center;
-  margin-top: 0.75rem;
-}
-
-/* ==========================================================================
-   Shared Modals & Utilities
-   ========================================================================== */
 .vox-modal-footer-row {
   display: flex;
   justify-content: space-between;
@@ -1558,10 +1835,6 @@ body {
 @media (max-width: 900px) {
   .vox-sidebar {
     position: fixed;
-    transform: translateX(isRtl ? 100% : -100%);
-  }
-
-  [dir="rtl"] .vox-sidebar {
     transform: translateX(100%);
   }
 

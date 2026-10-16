@@ -26,6 +26,7 @@ interface OcrModalProps {
   onAppendText: (text: string) => void;
   onReplaceText: (text: string) => void;
   onOcrFinished?: (result: OcrResult, imageBase64: string) => void;
+  isPageView?: boolean;
 }
 
 export const OcrModal: React.FC<OcrModalProps> = ({
@@ -34,6 +35,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({
   onAppendText,
   onReplaceText,
   onOcrFinished,
+  isPageView = false,
 }) => {
   const { t, lang } = useTranslation();
 
@@ -206,166 +208,192 @@ export const OcrModal: React.FC<OcrModalProps> = ({
     }
   };
 
+  const footerButtons = (
+    <div className="vox-modal-footer-row">
+      <div className="vox-modal-footer-left">
+        {extractedText && (
+          <>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportTxt}>
+              <FileDown size={14} /><span>TXT</span>
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportDocx}>
+              <FileDown size={14} /><span>DOCX</span>
+            </button>
+          </>
+        )}
+      </div>
+      <div className="vox-modal-footer-right">
+        <button className="btn btn-secondary" onClick={onClose}>{t.cancel}</button>
+        {extractedText && (
+          <>
+            <button className="btn btn-secondary" onClick={handleReplace}>{t.replaceEditor}</button>
+            <button className="btn btn-primary" onClick={handleAppend}>{t.appendToEditor}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const mainContent = (
+    <div className="vox-screen-container">
+      {!isPageView && <p className="vox-screen-subtitle">Upload an image or PDF and extract the text using OCR.</p>}
+
+      {/* Drag & Drop Area matching Screen 2 */}
+      <div
+        className="vox-dropzone"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/png,image/jpeg,image/webp,image/bmp,application/pdf"
+          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+        />
+        <div className="vox-dropzone-icon">
+          <Upload size={32} />
+        </div>
+        <div className="vox-dropzone-title">Drag & drop an image or PDF here</div>
+        <div className="vox-dropzone-or">or</div>
+        <button
+          type="button"
+          className="vox-choose-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
+          Choose File
+        </button>
+        <div className="vox-dropzone-formats">
+          Supported formats: PNG, JPG, JPEG, PDF
+        </div>
+      </div>
+
+      {/* Options Row */}
+      <div className="vox-options-bar">
+        <div className="vox-lang-select-group">
+          <label className="vox-label">Language</label>
+          <select
+            className="vox-select"
+            value={ocrLanguage}
+            onChange={(e) => setOcrLanguage(e.target.value as OcrLanguage)}
+          >
+            <option value="ara">Arabic (Default) - العربية</option>
+            <option value="eng">English - الإنجليزية</option>
+            <option value="ara+eng">Arabic + English - عربي وإنجليزي</option>
+          </select>
+        </div>
+
+        {imageSrc && !isPdf && (
+          <div className="vox-img-tools">
+            <button className="btn btn-secondary btn-sm" onClick={() => handleRotate(-90)} title="Rotate Left">
+              <RotateCcw size={14} />
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => handleRotate(90)} title="Rotate Right">
+              <RotateCw size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Preview box */}
+      {imageSrc && (
+        <div className="vox-preview-card">
+          <div className="vox-preview-header">
+            <label className="vox-label">Preview: {selectedFileName}</label>
+          </div>
+          <div className="vox-preview-img-container">
+            <img src={imageSrc} alt="Preview" className="vox-preview-img" />
+          </div>
+        </div>
+      )}
+
+      {/* Extract Button & Progress */}
+      <div className="vox-action-center">
+        <button
+          className="vox-btn-pill btn-extract"
+          onClick={handleRunOcr}
+          disabled={(!imageSrc && !selectedFileRef.current) || isProcessing}
+        >
+          <Sparkles size={16} />
+          <span>{isProcessing ? 'Extracting...' : 'Extract Text'}</span>
+        </button>
+      </div>
+
+      {isProcessing && (
+        <div className="vox-progress-container">
+          <div className="vox-progress-label">
+            <span>{progressStatus}</span>
+            <span>{progressPercent}%</span>
+          </div>
+          <div className="progress-bar-container">
+            <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="vox-error-box">
+          <AlertCircle size={18} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Extracted Output */}
+      {extractedText && (
+        <div className="vox-transcription-section">
+          <div className="vox-transcription-header">
+            <label className="vox-label">
+              Extracted Text {confidence !== null && `(Accuracy ~${confidence}%)`}
+            </label>
+            <button className="vox-tool-btn" onClick={handleCopy}>
+              {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <textarea
+            className="vox-transcription-textarea"
+            rows={6}
+            value={extractedText}
+            onChange={(e) => setExtractedText(e.target.value)}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  if (isPageView) {
+    return (
+      <div className="vox-page-view-card">
+        <div className="vox-page-view-header">
+          <div className="vox-page-view-title-wrap">
+            <h2 className="vox-page-view-title">Image to Text (OCR & PDF)</h2>
+            <p className="vox-page-view-sub">Upload an image or PDF and extract the text using OCR.</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+            {lang === 'ar' ? 'الرجوع للرئيسية' : 'Back to Home'}
+          </button>
+        </div>
+        {mainContent}
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+          {footerButtons}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Image to Text"
       size="large"
-      footer={
-        <div className="vox-modal-footer-row">
-          <div className="vox-modal-footer-left">
-            {extractedText && (
-              <>
-                <button className="btn btn-secondary btn-sm" onClick={handleExportTxt}>
-                  <FileDown size={14} /><span>TXT</span>
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={handleExportDocx}>
-                  <FileDown size={14} /><span>DOCX</span>
-                </button>
-              </>
-            )}
-          </div>
-          <div className="vox-modal-footer-right">
-            <button className="btn btn-secondary" onClick={onClose}>{t.cancel}</button>
-            {extractedText && (
-              <>
-                <button className="btn btn-secondary" onClick={handleReplace}>{t.replaceEditor}</button>
-                <button className="btn btn-primary" onClick={handleAppend}>{t.appendToEditor}</button>
-              </>
-            )}
-          </div>
-        </div>
-      }
+      footer={footerButtons}
     >
-      <div className="vox-screen-container">
-        <p className="vox-screen-subtitle">Upload an image or PDF and extract the text using OCR.</p>
-
-        {/* Drag & Drop Area matching Screen 2 */}
-        <div
-          className="vox-dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            accept="image/png,image/jpeg,image/webp,image/bmp,application/pdf"
-            onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-          />
-          <div className="vox-dropzone-icon">
-            <Upload size={32} />
-          </div>
-          <div className="vox-dropzone-title">Drag & drop an image or PDF here</div>
-          <div className="vox-dropzone-or">or</div>
-          <button
-            type="button"
-            className="vox-choose-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-          >
-            Choose File
-          </button>
-          <div className="vox-dropzone-formats">
-            Supported formats: PNG, JPG, JPEG, PDF
-          </div>
-        </div>
-
-        {/* Options Row */}
-        <div className="vox-options-bar">
-          <div className="vox-lang-select-group">
-            <label className="vox-label">Language</label>
-            <select
-              className="vox-select"
-              value={ocrLanguage}
-              onChange={(e) => setOcrLanguage(e.target.value as OcrLanguage)}
-            >
-              <option value="ara">Arabic (Default) - العربية</option>
-              <option value="eng">English - الإنجليزية</option>
-              <option value="ara+eng">Arabic + English - عربي وإنجليزي</option>
-            </select>
-          </div>
-
-          {imageSrc && !isPdf && (
-            <div className="vox-img-tools">
-              <button className="btn btn-secondary btn-sm" onClick={() => handleRotate(-90)} title="Rotate Left">
-                <RotateCcw size={14} />
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => handleRotate(90)} title="Rotate Right">
-                <RotateCw size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Preview box */}
-        {imageSrc && (
-          <div className="vox-preview-card">
-            <div className="vox-preview-header">
-              <label className="vox-label">Preview: {selectedFileName}</label>
-            </div>
-            <div className="vox-preview-img-container">
-              <img src={imageSrc} alt="Preview" className="vox-preview-img" />
-            </div>
-          </div>
-        )}
-
-        {/* Extract Button & Progress */}
-        <div className="vox-action-center">
-          <button
-            className="vox-btn-pill btn-extract"
-            onClick={handleRunOcr}
-            disabled={(!imageSrc && !selectedFileRef.current) || isProcessing}
-          >
-            <Sparkles size={16} />
-            <span>{isProcessing ? 'Extracting...' : 'Extract Text'}</span>
-          </button>
-        </div>
-
-        {isProcessing && (
-          <div className="vox-progress-container">
-            <div className="vox-progress-label">
-              <span>{progressStatus}</span>
-              <span>{progressPercent}%</span>
-            </div>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-            </div>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="vox-error-box">
-            <AlertCircle size={18} />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Extracted Output */}
-        {extractedText && (
-          <div className="vox-transcription-section">
-            <div className="vox-transcription-header">
-              <label className="vox-label">
-                Extracted Text {confidence !== null && `(Accuracy ~${confidence}%)`}
-              </label>
-              <button className="vox-tool-btn" onClick={handleCopy}>
-                {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-            <textarea
-              className="vox-transcription-textarea"
-              rows={6}
-              value={extractedText}
-              onChange={(e) => setExtractedText(e.target.value)}
-            />
-          </div>
-        )}
-      </div>
+      {mainContent}
     </Modal>
   );
 };

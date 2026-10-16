@@ -19,12 +19,14 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDataCleared?: () => void;
+  isPageView?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   onDataCleared,
+  isPageView = false,
 }) => {
   const { t, lang, setLanguage } = useTranslation();
 
@@ -36,10 +38,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isClearing, setIsClearing] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isPageView) {
       loadStorageInfo();
     }
-  }, [isOpen]);
+  }, [isOpen, isPageView]);
 
   const loadStorageInfo = async () => {
     try {
@@ -69,25 +71,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Settings"
-      size="normal"
-      footer={
-        <div className="vox-modal-footer-row">
-          <div className="vox-modal-footer-left"></div>
-          <div className="vox-modal-footer-right">
-            <button className="btn btn-primary" onClick={onClose}>
-              {t.close}
-            </button>
-          </div>
-        </div>
-      }
-    >
-      <div className="vox-screen-container">
-        <p className="vox-screen-subtitle">Customize your application</p>
+  const footerContent = (
+    <div className="vox-modal-footer-row">
+      <div className="vox-modal-footer-left"></div>
+      <div className="vox-modal-footer-right">
+        <button className="btn btn-primary" onClick={onClose}>
+          {t.close}
+        </button>
+      </div>
+    </div>
+  );
+
+  const settingsContent = (
+    <div className="vox-screen-container">
+      <p className="vox-screen-subtitle">Customize your application</p>
 
         {/* 1. Language */}
         <div className="vox-settings-card">
@@ -212,6 +209,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </p>
         </div>
       </div>
+  );
+
+  if (isPageView) {
+    return (
+      <div className="vox-page-view-card">
+        <div className="vox-page-view-header">
+          <div className="vox-page-view-title-wrap">
+            <h2 className="vox-page-view-title">{t.settings}</h2>
+            <p className="vox-page-view-sub">Customize your application preferences</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+            {lang === 'ar' ? 'الرجوع للرئيسية' : 'Back to Home'}
+          </button>
+        </div>
+        {settingsContent}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+          {footerContent}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Settings"
+      size="normal"
+      footer={footerContent}
+    >
+      {settingsContent}
     </Modal>
   );
 };
+

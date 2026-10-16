@@ -28,6 +28,7 @@ interface SpeechModalProps {
   onAppendText: (text: string) => void;
   onReplaceText: (text: string) => void;
   onExecuteCommand?: (match: VoiceCommandMatch) => void;
+  isPageView?: boolean;
 }
 
 export const SpeechModal: React.FC<SpeechModalProps> = ({
@@ -36,6 +37,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
   onAppendText,
   onReplaceText,
   onExecuteCommand,
+  isPageView = false,
 }) => {
   const { t, lang } = useTranslation();
 
@@ -211,214 +213,240 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  const footerContent = (
+    <div className="vox-modal-footer-row">
+      <div className="vox-modal-footer-left">
+        <button className="btn btn-secondary btn-sm" onClick={handleClear} disabled={!transcriptText && !interimText}>
+          <Trash2 size={14} /><span>{lang === 'ar' ? 'مسح الكل' : 'Clear'}</span>
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={handleExportTxt} disabled={!transcriptText && !interimText}>
+          <FileDown size={14} /><span>TXT</span>
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={handleExportDocx} disabled={!transcriptText && !interimText}>
+          <FileDown size={14} /><span>DOCX</span>
+        </button>
+      </div>
+      <div className="vox-modal-footer-right">
+        <button className="btn btn-secondary" onClick={onClose}>{t.cancel}</button>
+        {(transcriptText || interimText) && (
+          <>
+            <button className="btn btn-secondary" onClick={handleApplyReplace}>{t.replaceEditor}</button>
+            <button className="btn btn-primary" onClick={handleApplyAppend}>{t.appendToEditor}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const mainBody = (
+    <div className="vox-stt-container">
+      {/* Subtitle */}
+      {!isPageView && <p className="vox-stt-subtitle">Speak clearly and get accurate text.</p>}
+
+      {/* Language & Command mode row */}
+      <div className="vox-stt-options-row">
+        <div className="vox-stt-lang-group">
+          <label className="vox-label">Language</label>
+          <select
+            className="vox-select"
+            value={speechLanguage}
+            onChange={(e) => {
+              setSpeechLanguage(e.target.value);
+              if (isListening) handleStop();
+            }}
+          >
+            <option value="ar-EG">Arabic (Egyptian) - العربية (مصر)</option>
+            <option value="ar-SA">Arabic (Saudi) - العربية (السعودية والخليج)</option>
+            <option value="ar">Arabic (Standard) - العربية (فصحى)</option>
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+          </select>
+        </div>
+
+        <label className="vox-checkbox-label">
+          <input
+            type="checkbox"
+            checked={isCommandMode}
+            onChange={(e) => setIsCommandMode(e.target.checked)}
+          />
+          <Command size={14} />
+          <span>{t.voiceCommandMode}</span>
+        </label>
+      </div>
+
+      {/* Voice command banner */}
+      {isCommandMode && (
+        <div className="vox-command-info-banner">
+          <Sparkles size={16} />
+          <span>{t.voiceCommandHint}</span>
+        </div>
+      )}
+
+      {/* Central Record Circle with Waves and Timer */}
+      <div className="vox-stt-record-card">
+        <div className={`vox-mic-circle-wrapper ${isListening ? 'listening-active' : ''}`}>
+          <button
+            className={`vox-mic-circle ${isListening ? 'pulse' : ''}`}
+            onClick={isListening ? handleStop : isPaused ? handleResume : handleStart}
+            aria-label={isListening ? 'Stop recording' : 'Start recording'}
+          >
+            <Mic size={36} color="#ffffff" />
+          </button>
+          {isListening && (
+            <>
+              <div className="wave-ring ring-1"></div>
+              <div className="wave-ring ring-2"></div>
+              <div className="wave-ring ring-3"></div>
+            </>
+          )}
+        </div>
+
+        <div className="vox-stt-status-text">
+          {isListening ? (
+            <span className="text-danger font-bold">● Listening & Typing live...</span>
+          ) : isPaused ? (
+            <span className="text-warning font-bold">⏸ Paused - Edit or resume</span>
+          ) : (
+            <span className="text-muted">Ready to record</span>
+          )}
+        </div>
+
+        {/* Soundwave + Timer */}
+        <div className="vox-stt-timer-row">
+          <div className="mini-soundwave left">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span className="vox-timer-digits">{formatTimer(durationSeconds)}</span>
+          <div className="mini-soundwave right">
+            <span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
+        {/* Action buttons row: Start / Pause / Stop */}
+        <div className="vox-stt-controls-row">
+          {!isListening ? (
+            isPaused ? (
+              <>
+                <button className="vox-btn-pill btn-start" onClick={handleResume}>
+                  <Play size={16} /><span>Resume</span>
+                </button>
+                <button className="vox-btn-pill btn-stop" onClick={handleStop}>
+                  <Square size={16} /><span>Stop</span>
+                </button>
+              </>
+            ) : (
+              <button className="vox-btn-pill btn-start" onClick={handleStart}>
+                <Play size={16} /><span>Start</span>
+              </button>
+            )
+          ) : (
+            <>
+              <button className="vox-btn-pill btn-pause" onClick={handlePause}>
+                <Pause size={16} /><span>Pause</span>
+              </button>
+              <button className="vox-btn-pill btn-stop" onClick={handleStop}>
+                <Square size={16} /><span>Stop</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="vox-error-box">
+            <AlertCircle size={18} />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Live Interim Streaming Words */}
+      {isListening && (
+        <div className="vox-interim-box">
+          <Sparkles size={16} className="text-primary" />
+          <span className="vox-interim-text">
+            {interimText || 'Speak now — words appear here in real time...'}
+          </span>
+        </div>
+      )}
+
+      {/* Detected Voice Command */}
+      {detectedCommand && (
+        <div className="vox-detected-command-row">
+          <div>
+            <strong>Command detected: "{detectedCommand.phrase}"</strong>
+          </div>
+          {onExecuteCommand && (
+            <button
+              className="btn btn-success btn-sm"
+              onClick={() => {
+                onExecuteCommand(detectedCommand);
+                onClose();
+              }}
+            >
+              Execute
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Transcription Output Box */}
+      <div className="vox-transcription-section">
+        <div className="vox-transcription-header">
+          <label className="vox-label">Transcription</label>
+          <div className="vox-transcription-tools">
+            <button
+              className="vox-tool-btn"
+              onClick={handleCopy}
+              disabled={!transcriptText && !interimText}
+              title="Copy to clipboard"
+            >
+              {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+        </div>
+
+        <textarea
+          className="vox-transcription-textarea"
+          placeholder="Your transcribed text will appear here..."
+          value={transcriptText + (interimText ? ` ${interimText}` : '')}
+          onChange={(e) => setTranscriptText(e.target.value)}
+          rows={5}
+        />
+      </div>
+    </div>
+  );
+
+  if (isPageView) {
+    return (
+      <div className="vox-page-view-card">
+        <div className="vox-page-view-header">
+          <div className="vox-page-view-title-wrap">
+            <h2 className="vox-page-view-title">Speech to Text</h2>
+            <p className="vox-page-view-sub">Speak clearly and get accurate text.</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+            {lang === 'ar' ? 'الرجوع للرئيسية' : 'Back to Home'}
+          </button>
+        </div>
+        {mainBody}
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+          {footerContent}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Speech to Text"
       size="large"
-      footer={
-        <div className="vox-modal-footer-row">
-          <div className="vox-modal-footer-left">
-            <button className="btn btn-secondary btn-sm" onClick={handleClear} disabled={!transcriptText && !interimText}>
-              <Trash2 size={14} /><span>{lang === 'ar' ? 'مسح الكل' : 'Clear'}</span>
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportTxt} disabled={!transcriptText && !interimText}>
-              <FileDown size={14} /><span>TXT</span>
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportDocx} disabled={!transcriptText && !interimText}>
-              <FileDown size={14} /><span>DOCX</span>
-            </button>
-          </div>
-          <div className="vox-modal-footer-right">
-            <button className="btn btn-secondary" onClick={onClose}>{t.cancel}</button>
-            {(transcriptText || interimText) && (
-              <>
-                <button className="btn btn-secondary" onClick={handleApplyReplace}>{t.replaceEditor}</button>
-                <button className="btn btn-primary" onClick={handleApplyAppend}>{t.appendToEditor}</button>
-              </>
-            )}
-          </div>
-        </div>
-      }
+      footer={footerContent}
     >
-      <div className="vox-stt-container">
-        {/* Subtitle */}
-        <p className="vox-stt-subtitle">Speak clearly and get accurate text.</p>
-
-        {/* Language & Command mode row */}
-        <div className="vox-stt-options-row">
-          <div className="vox-stt-lang-group">
-            <label className="vox-label">Language</label>
-            <select
-              className="vox-select"
-              value={speechLanguage}
-              onChange={(e) => {
-                setSpeechLanguage(e.target.value);
-                if (isListening) handleStop();
-              }}
-            >
-              <option value="ar-EG">Arabic (Egyptian) - العربية (مصر)</option>
-              <option value="ar-SA">Arabic (Saudi) - العربية (السعودية والخليج)</option>
-              <option value="ar">Arabic (Standard) - العربية (فصحى)</option>
-              <option value="en-US">English (US)</option>
-              <option value="en-GB">English (UK)</option>
-            </select>
-          </div>
-
-          <label className="vox-checkbox-label">
-            <input
-              type="checkbox"
-              checked={isCommandMode}
-              onChange={(e) => setIsCommandMode(e.target.checked)}
-            />
-            <Command size={14} />
-            <span>{t.voiceCommandMode}</span>
-          </label>
-        </div>
-
-        {/* Voice command banner */}
-        {isCommandMode && (
-          <div className="vox-command-info-banner">
-            <Sparkles size={16} />
-            <span>{t.voiceCommandHint}</span>
-          </div>
-        )}
-
-        {/* Central Record Circle with Waves and Timer */}
-        <div className="vox-stt-record-card">
-          <div className={`vox-mic-circle-wrapper ${isListening ? 'listening-active' : ''}`}>
-            <button
-              className={`vox-mic-circle ${isListening ? 'pulse' : ''}`}
-              onClick={isListening ? handleStop : isPaused ? handleResume : handleStart}
-              aria-label={isListening ? 'Stop recording' : 'Start recording'}
-            >
-              <Mic size={36} color="#ffffff" />
-            </button>
-            {isListening && (
-              <>
-                <div className="wave-ring ring-1"></div>
-                <div className="wave-ring ring-2"></div>
-                <div className="wave-ring ring-3"></div>
-              </>
-            )}
-          </div>
-
-          <div className="vox-stt-status-text">
-            {isListening ? (
-              <span className="text-danger font-bold">● Listening & Typing live...</span>
-            ) : isPaused ? (
-              <span className="text-warning font-bold">⏸ Paused - Edit or resume</span>
-            ) : (
-              <span className="text-muted">Ready to record</span>
-            )}
-          </div>
-
-          {/* Soundwave + Timer */}
-          <div className="vox-stt-timer-row">
-            <div className="mini-soundwave left">
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <span className="vox-timer-digits">{formatTimer(durationSeconds)}</span>
-            <div className="mini-soundwave right">
-              <span></span><span></span><span></span><span></span>
-            </div>
-          </div>
-
-          {/* Action buttons row: Start / Pause / Stop */}
-          <div className="vox-stt-controls-row">
-            {!isListening ? (
-              isPaused ? (
-                <>
-                  <button className="vox-btn-pill btn-start" onClick={handleResume}>
-                    <Play size={16} /><span>Resume</span>
-                  </button>
-                  <button className="vox-btn-pill btn-stop" onClick={handleStop}>
-                    <Square size={16} /><span>Stop</span>
-                  </button>
-                </>
-              ) : (
-                <button className="vox-btn-pill btn-start" onClick={handleStart}>
-                  <Play size={16} /><span>Start</span>
-                </button>
-              )
-            ) : (
-              <>
-                <button className="vox-btn-pill btn-pause" onClick={handlePause}>
-                  <Pause size={16} /><span>Pause</span>
-                </button>
-                <button className="vox-btn-pill btn-stop" onClick={handleStop}>
-                  <Square size={16} /><span>Stop</span>
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="vox-error-box">
-              <AlertCircle size={18} />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Live Interim Streaming Words */}
-        {isListening && (
-          <div className="vox-interim-box">
-            <Sparkles size={16} className="text-primary" />
-            <span className="vox-interim-text">
-              {interimText || 'Speak now — words appear here in real time...'}
-            </span>
-          </div>
-        )}
-
-        {/* Detected Voice Command */}
-        {detectedCommand && (
-          <div className="vox-detected-command-row">
-            <div>
-              <strong>Command detected: "{detectedCommand.phrase}"</strong>
-            </div>
-            {onExecuteCommand && (
-              <button
-                className="btn btn-success btn-sm"
-                onClick={() => {
-                  onExecuteCommand(detectedCommand);
-                  onClose();
-                }}
-              >
-                Execute
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Transcription Output Box */}
-        <div className="vox-transcription-section">
-          <div className="vox-transcription-header">
-            <label className="vox-label">Transcription</label>
-            <div className="vox-transcription-tools">
-              <button
-                className="vox-tool-btn"
-                onClick={handleCopy}
-                disabled={!transcriptText && !interimText}
-                title="Copy to clipboard"
-              >
-                {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-          </div>
-
-          <textarea
-            className="vox-transcription-textarea"
-            placeholder="Your transcribed text will appear here..."
-            value={transcriptText + (interimText ? ` ${interimText}` : '')}
-            onChange={(e) => setTranscriptText(e.target.value)}
-            rows={5}
-          />
-        </div>
-      </div>
+      {mainBody}
     </Modal>
   );
 };

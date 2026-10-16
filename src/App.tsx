@@ -4,28 +4,35 @@ import { Sidebar, type NavigationTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ActionCards } from './components/home/ActionCards';
 import { RecentDocs } from './components/home/RecentDocs';
-import { WelcomeModal } from './components/home/WelcomeModal';
 import { DocumentEditor } from './components/editor/DocumentEditor';
 import { SpeechModal } from './components/stt/SpeechModal';
 import { OcrModal } from './components/ocr/OcrModal';
 import { WordLayoutModal } from './components/word/WordLayoutModal';
 import { TableModal } from './components/excel/TableModal';
 import { SettingsModal } from './components/settings/SettingsModal';
+import { LoginPage } from './components/auth/LoginPage';
 import {
   getAllDocuments,
   saveDocument,
   deleteDocument,
 } from './services/storage/idbStorage';
+import {
+  getStoredUser,
+  clearUser,
+  type UserProfile,
+} from './services/auth/authService';
 import type { DocumentItem, TableGrid, VoiceCommandMatch } from './types';
 import { useTranslation } from './i18n/useTranslation';
 
 export function App() {
-  const { lang, t } = useTranslation();
+  const { lang } = useTranslation();
+
+  const [user, setUser] = useState<UserProfile | null>(() => getStoredUser());
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(() => !getStoredUser());
 
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [currentDoc, setCurrentDoc] = useState<DocumentItem>({
@@ -37,12 +44,6 @@ export function App() {
     updatedAt: Date.now() - 7200000,
   });
 
-  // Feature modals state
-  const [isSpeechOpen, setIsSpeechOpen] = useState(false);
-  const [isOcrOpen, setIsOcrOpen] = useState(false);
-  const [isWordOpen, setIsWordOpen] = useState(false);
-  const [isTableOpen, setIsTableOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTableForModal, setActiveTableForModal] = useState<TableGrid | undefined>(undefined);
 
   // Load documents from storage
@@ -56,7 +57,7 @@ export function App() {
       setDocuments(list);
       setCurrentDoc(list[0]);
     } else {
-      // Seed default items matching screenshot
+      // Seed default items matching clean layout
       const doc1: DocumentItem = {
         id: `doc-${Date.now()}-1`,
         title: 'meeting_notes',
@@ -165,27 +166,16 @@ export function App() {
 
   const handleTabSelect = (tab: NavigationTab) => {
     setActiveTab(tab);
-    switch (tab) {
-      case 'speech':
-        setIsSpeechOpen(true);
-        break;
-      case 'ocr':
-        setIsOcrOpen(true);
-        break;
-      case 'word':
-        setIsWordOpen(true);
-        break;
-      case 'excel':
-        setActiveTableForModal(undefined);
-        setIsTableOpen(true);
-        break;
-      case 'settings':
-        setIsSettingsOpen(true);
-        break;
-      case 'recent':
-        window.scrollTo({ top: 500, behavior: 'smooth' });
-        break;
+    setMobileSidebarOpen(false);
+    if (tab === 'excel') {
+      setActiveTableForModal(undefined);
     }
+  };
+
+  const handleLogout = () => {
+    clearUser();
+    setUser(null);
+    setShowLoginModal(true);
   };
 
   const handleExecuteVoiceCommand = (match: VoiceCommandMatch) => {
@@ -233,6 +223,18 @@ export function App() {
     return d.title.toLowerCase().includes(q) || d.content.toLowerCase().includes(q);
   });
 
+  // Render Login page if not authenticated or user triggered login
+  if (showLoginModal) {
+    return (
+      <LoginPage
+        onLoginSuccess={(loggedInUser) => {
+          setUser(loggedInUser);
+          setShowLoginModal(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="vox-app-layout">
       {/* 1. Left Sleek Sidebar */}
@@ -247,130 +249,148 @@ export function App() {
       <div className="vox-main-wrapper">
         {/* Top Header */}
         <Header
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          user={user}
+          onOpenSettings={() => setActiveTab('settings')}
           onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          onLogout={handleLogout}
+          onOpenLogin={() => setShowLoginModal(true)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
 
         {/* Workspace Body */}
         <main className="vox-workspace">
-          {/* Greeting Banner */}
-          <div className="vox-greeting-header">
-            <h1 className="vox-greeting-title">
-              {lang === 'ar' ? 'صباح الخير، 👋' : 'Good Morning, 👋'}
-            </h1>
-            <p className="vox-greeting-sub">
-              {lang === 'ar' ? 'ماذا تريد أن تنجز اليوم؟' : 'What would you like to do today?'}
-            </p>
-          </div>
+          {/* Active Dedicated Page Views */}
+          {activeTab === 'speech' && (
+            <SpeechModal
+              isPageView={true}
+              isOpen={true}
+              onClose={() => setActiveTab('home')}
+              onAppendText={handleAppendText}
+              onReplaceText={handleReplaceText}
+              onExecuteCommand={handleExecuteVoiceCommand}
+            />
+          )}
 
-          {/* 4 Colored Action Cards */}
-          <ActionCards
-            onSelectSpeech={() => setIsSpeechOpen(true)}
-            onSelectOcr={() => setIsOcrOpen(true)}
-            onSelectWord={() => setIsWordOpen(true)}
-            onSelectExcel={() => {
-              setActiveTableForModal(undefined);
-              setIsTableOpen(true);
-            }}
-          />
+          {activeTab === 'ocr' && (
+            <OcrModal
+              isPageView={true}
+              isOpen={true}
+              onClose={() => setActiveTab('home')}
+              onAppendText={handleAppendText}
+              onReplaceText={handleReplaceText}
+            />
+          )}
 
-          {/* Recent Files Section */}
-          <RecentDocs
-            documents={filteredDocs}
-            onOpenDoc={handleOpenDoc}
-            onDeleteDoc={handleDeleteDoc}
-            onViewAll={() => handleTabSelect('recent')}
-          />
-
-          {/* Full Document Editor */}
-          <section className="vox-editor-section">
-            <DocumentEditor
-              currentDoc={currentDoc}
-              onSaveDoc={handleSaveDoc}
-              onNewDoc={handleNewDoc}
-              onTriggerSpeech={() => setIsSpeechOpen(true)}
-              onOpenTableModal={(table) => {
-                setActiveTableForModal(table);
-                setIsTableOpen(true);
-              }}
-              onExecuteVoiceCommand={(cmd) => {
-                const match = { command: cmd as any, phrase: cmd, language: 'ar' as const, confidence: 1 };
-                handleExecuteVoiceCommand(match);
+          {activeTab === 'word' && (
+            <WordLayoutModal
+              isPageView={true}
+              isOpen={true}
+              onClose={() => setActiveTab('home')}
+              onApplyToDocument={(title, content) => {
+                const updated: DocumentItem = {
+                  id: `doc-${Date.now()}`,
+                  title,
+                  content,
+                  type: 'word',
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+                handleSaveDoc(updated);
+                setActiveTab('home');
               }}
             />
-          </section>
+          )}
+
+          {activeTab === 'excel' && (
+            <TableModal
+              isPageView={true}
+              isOpen={true}
+              onClose={() => setActiveTab('home')}
+              initialTable={activeTableForModal}
+              onSaveTableToDoc={(table) => {
+                const updated: DocumentItem = {
+                  ...currentDoc,
+                  type: 'excel',
+                  tableData: table,
+                  updatedAt: Date.now(),
+                };
+                handleSaveDoc(updated);
+                setActiveTab('home');
+              }}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsModal
+              isPageView={true}
+              isOpen={true}
+              onClose={() => setActiveTab('home')}
+              onDataCleared={() => {
+                setDocuments([]);
+                handleNewDoc();
+                setActiveTab('home');
+              }}
+            />
+          )}
+
+          {/* Home / Recent Dashboard View */}
+          {(activeTab === 'home' || activeTab === 'recent') && (
+            <>
+              {/* Greeting Banner */}
+              <div className="vox-greeting-header">
+                <h1 className="vox-greeting-title">
+                  {lang === 'ar'
+                    ? `صباح الخير${user?.name ? '، ' + user.name : ''} 👋`
+                    : `Good day${user?.name ? ', ' + user.name : ''} 👋`}
+                </h1>
+                <p className="vox-greeting-sub">
+                  {lang === 'ar'
+                    ? 'ماذا تريد أن تنجز اليوم في VoxNote؟'
+                    : 'What would you like to accomplish today in VoxNote?'}
+                </p>
+              </div>
+
+              {/* 4 Colored Action Cards */}
+              <ActionCards
+                onSelectSpeech={() => setActiveTab('speech')}
+                onSelectOcr={() => setActiveTab('ocr')}
+                onSelectWord={() => setActiveTab('word')}
+                onSelectExcel={() => {
+                  setActiveTableForModal(undefined);
+                  setActiveTab('excel');
+                }}
+              />
+
+              {/* Recent Files Section */}
+              <RecentDocs
+                documents={filteredDocs}
+                onOpenDoc={handleOpenDoc}
+                onDeleteDoc={handleDeleteDoc}
+                onViewAll={() => setActiveTab('recent')}
+              />
+
+              {/* Full Document Editor */}
+              <section className="vox-editor-section">
+                <DocumentEditor
+                  currentDoc={currentDoc}
+                  onSaveDoc={handleSaveDoc}
+                  onNewDoc={handleNewDoc}
+                  onTriggerSpeech={() => setActiveTab('speech')}
+                  onOpenTableModal={(table) => {
+                    setActiveTableForModal(table);
+                    setActiveTab('excel');
+                  }}
+                  onExecuteVoiceCommand={(cmd) => {
+                    const match = { command: cmd as any, phrase: cmd, language: 'ar' as const, confidence: 1 };
+                    handleExecuteVoiceCommand(match);
+                  }}
+                />
+              </section>
+            </>
+          )}
         </main>
       </div>
-
-      {/* Feature Modals & Screens */}
-      {/* 1. Speech to Text */}
-      <SpeechModal
-        isOpen={isSpeechOpen}
-        onClose={() => setIsSpeechOpen(false)}
-        onAppendText={handleAppendText}
-        onReplaceText={handleReplaceText}
-        onExecuteCommand={handleExecuteVoiceCommand}
-      />
-
-      {/* 2. Image & PDF to Text OCR */}
-      <OcrModal
-        isOpen={isOcrOpen}
-        onClose={() => setIsOcrOpen(false)}
-        onAppendText={handleAppendText}
-        onReplaceText={handleReplaceText}
-      />
-
-      {/* 3. Image & PDF to Word */}
-      <WordLayoutModal
-        isOpen={isWordOpen}
-        onClose={() => setIsWordOpen(false)}
-        onApplyToDocument={(title, content) => {
-          const updated: DocumentItem = {
-            id: `doc-${Date.now()}`,
-            title,
-            content,
-            type: 'word',
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-          handleSaveDoc(updated);
-        }}
-      />
-
-      {/* 4. Image & PDF to Excel */}
-      <TableModal
-        isOpen={isTableOpen}
-        onClose={() => setIsTableOpen(false)}
-        initialTable={activeTableForModal}
-        onSaveTableToDoc={(table) => {
-          const updated: DocumentItem = {
-            ...currentDoc,
-            type: 'excel',
-            tableData: table,
-            updatedAt: Date.now(),
-          };
-          handleSaveDoc(updated);
-        }}
-      />
-
-      {/* 5. Settings */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onDataCleared={() => {
-          setDocuments([]);
-          handleNewDoc();
-        }}
-      />
-
-      {/* Optional Welcome/Auth Landing Modal */}
-      <WelcomeModal
-        isOpen={showWelcomeModal}
-        onClose={() => setShowWelcomeModal(false)}
-        onContinueGuest={() => setShowWelcomeModal(false)}
-      />
     </div>
   );
 }

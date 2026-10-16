@@ -30,6 +30,7 @@ interface TableModalProps {
   onClose: () => void;
   initialTable?: TableGrid;
   onSaveTableToDoc?: (table: TableGrid) => void;
+  isPageView?: boolean;
 }
 
 export const TableModal: React.FC<TableModalProps> = ({
@@ -37,6 +38,7 @@ export const TableModal: React.FC<TableModalProps> = ({
   onClose,
   initialTable,
   onSaveTableToDoc,
+  isPageView = false,
 }) => {
   const { t } = useTranslation();
 
@@ -171,144 +173,170 @@ export const TableModal: React.FC<TableModalProps> = ({
     onClose();
   };
 
+  const footerButtons = (
+    <div className="vox-modal-footer-row">
+      <div className="vox-modal-footer-left">
+        <button className="btn btn-secondary" onClick={onClose}>
+          Back
+        </button>
+      </div>
+      <div className="vox-modal-footer-right">
+        <button
+          className="btn btn-success"
+          onClick={handleExportXlsx}
+          disabled={!table || table.rows.length === 0}
+        >
+          <FileSpreadsheet size={16} />
+          <span>Export to Excel</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const mainContent = (
+    <div className="vox-screen-container">
+      {!isPageView && <p className="vox-screen-subtitle">Convert table images or PDF to Excel.</p>}
+
+      {/* Drag & Drop Area */}
+      <div
+        className="vox-dropzone"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/png,image/jpeg,image/webp,image/bmp,application/pdf"
+          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+        />
+        <div className="vox-dropzone-icon">
+          <Upload size={32} />
+        </div>
+        <div className="vox-dropzone-title">Drag & drop an image or PDF here</div>
+        <div className="vox-dropzone-or">or</div>
+        <button
+          type="button"
+          className="vox-choose-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
+          Choose File
+        </button>
+        <div className="vox-dropzone-formats">
+          Supported formats: PNG, JPG, JPEG, PDF
+        </div>
+      </div>
+
+      {isProcessing && (
+        <div className="vox-progress-container">
+          <div className="vox-progress-label">
+            <span>{detectionMessage || 'Processing table...'}</span>
+          </div>
+          <div className="progress-bar-container">
+            <div className="progress-bar-fill" style={{ width: '80%' }} />
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="vox-error-box">
+          <AlertCircle size={18} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Detected Table Preview Section */}
+      {table && table.rows.length > 0 && (
+        <div className="vox-table-preview-section">
+          <div className="vox-table-preview-header">
+            <label className="vox-label font-bold">Detected Table Preview</label>
+            <div className="vox-table-tools">
+              <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
+                <Plus size={14} /><span>Add Row</span>
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={handleAddColumn}>
+                <Plus size={14} /><span>Add Column</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="vox-table-grid-wrap">
+            <table className="vox-data-table">
+              {table.headers && table.headers.length > 0 && (
+                <thead>
+                  <tr>
+                    {table.headers.map((h, hIdx) => (
+                      <th key={`head-${hIdx}`}>{h}</th>
+                    ))}
+                    <th style={{ width: 40 }}></th>
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {table.rows.map((row, rIdx) => (
+                  <tr key={row.id || `row-${rIdx}`}>
+                    {row.cells.map((cell, cIdx) => (
+                      <td key={cell.id || `c-${rIdx}-${cIdx}`}>
+                        <input
+                          type="text"
+                          className="vox-cell-input"
+                          value={cell.value}
+                          onChange={(e) => handleCellChange(rIdx, cIdx, e.target.value)}
+                        />
+                      </td>
+                    ))}
+                    <td className="text-center">
+                      <button
+                        className="vox-cell-del-btn"
+                        onClick={() => handleDeleteRow(rIdx)}
+                        title="Delete row"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (isPageView) {
+    return (
+      <div className="vox-page-view-card">
+        <div className="vox-page-view-header">
+          <div className="vox-page-view-title-wrap">
+            <h2 className="vox-page-view-title">Image to Excel</h2>
+            <p className="vox-page-view-sub">Convert table images or PDF to Excel.</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+            Back to Home
+          </button>
+        </div>
+        {mainContent}
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+          {footerButtons}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Image to Excel"
       size="large"
-      footer={
-        <div className="vox-modal-footer-row">
-          <div className="vox-modal-footer-left">
-            <button className="btn btn-secondary" onClick={onClose}>
-              Back
-            </button>
-          </div>
-          <div className="vox-modal-footer-right">
-            <button
-              className="btn btn-success"
-              onClick={handleExportXlsx}
-              disabled={!table || table.rows.length === 0}
-            >
-              <FileSpreadsheet size={16} />
-              <span>Export to Excel</span>
-            </button>
-          </div>
-        </div>
-      }
+      footer={footerButtons}
     >
-      <div className="vox-screen-container">
-        <p className="vox-screen-subtitle">Convert table images or PDF to Excel.</p>
-
-        {/* Drag & Drop Area */}
-        <div
-          className="vox-dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            accept="image/png,image/jpeg,image/webp,image/bmp,application/pdf"
-            onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-          />
-          <div className="vox-dropzone-icon">
-            <Upload size={32} />
-          </div>
-          <div className="vox-dropzone-title">Drag & drop an image or PDF here</div>
-          <div className="vox-dropzone-or">or</div>
-          <button
-            type="button"
-            className="vox-choose-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-          >
-            Choose File
-          </button>
-          <div className="vox-dropzone-formats">
-            Supported formats: PNG, JPG, JPEG, PDF
-          </div>
-        </div>
-
-        {isProcessing && (
-          <div className="vox-progress-container">
-            <div className="vox-progress-label">
-              <span>{detectionMessage || 'Processing table...'}</span>
-            </div>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: '80%' }} />
-            </div>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="vox-error-box">
-            <AlertCircle size={18} />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Detected Table Preview Section */}
-        {table && table.rows.length > 0 && (
-          <div className="vox-table-preview-section">
-            <div className="vox-table-preview-header">
-              <label className="vox-label font-bold">Detected Table Preview</label>
-              <div className="vox-table-tools">
-                <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
-                  <Plus size={14} /><span>Add Row</span>
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={handleAddColumn}>
-                  <Plus size={14} /><span>Add Column</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="vox-table-grid-wrap">
-              <table className="vox-data-table">
-                {table.headers && table.headers.length > 0 && (
-                  <thead>
-                    <tr>
-                      {table.headers.map((h, hIdx) => (
-                        <th key={`head-${hIdx}`}>{h}</th>
-                      ))}
-                      <th style={{ width: 40 }}></th>
-                    </tr>
-                  </thead>
-                )}
-                <tbody>
-                  {table.rows.map((row, rIdx) => (
-                    <tr key={row.id || `row-${rIdx}`}>
-                      {row.cells.map((cell, cIdx) => (
-                        <td key={cell.id || `c-${rIdx}-${cIdx}`}>
-                          <input
-                            type="text"
-                            className="vox-cell-input"
-                            value={cell.value}
-                            onChange={(e) => handleCellChange(rIdx, cIdx, e.target.value)}
-                          />
-                        </td>
-                      ))}
-                      <td className="text-center">
-                        <button
-                          className="vox-cell-del-btn"
-                          onClick={() => handleDeleteRow(rIdx)}
-                          title="Delete row"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      {mainContent}
     </Modal>
   );
 };
