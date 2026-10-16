@@ -221,7 +221,7 @@ function cleanOcrText(text: string): string {
   out = out.replace(/\s+([،؛؟!.])/g, '$1');
   out = out.replace(/([،؛؟])(?=\S)/g, '$1 ');
 
-  // Fix Arabic definite-article split artifact "ال ا" → "الا" when OCR split it
+  // Fix Arabic definite-article split artifact: 'ال ا' becomes 'الا' when OCR split it
   out = out.replace(/(\S)\s+ال\s+/g, '$1 ال');
 
   // Collapse 3+ blank lines into one

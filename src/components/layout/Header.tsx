@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Globe, Settings as SettingsIcon, Menu, User, ShieldCheck, LogOut, LogIn } from 'lucide-react';
+import { Search, Globe, Settings as SettingsIcon, Menu, User, LogOut, LogIn } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
 import type { UserProfile } from '../../services/auth/authService';
 
@@ -51,11 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="vox-header-right">
-        <div className="vox-status-badge" title={t.privacyNoticeBody}>
-          <ShieldCheck size={14} className="text-success" />
-          <span className="vox-badge-text">{t.localEngine}</span>
-        </div>
-
         <button
           className="vox-header-btn"
           onClick={() => setLanguage(lang === 'ar' ? 'en' : 'ar')}

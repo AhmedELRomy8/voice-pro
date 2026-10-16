@@ -112,7 +112,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
         setErrorMessage(err);
         if (isNetErr) {
           setErrorMessage(
-            err + '\n\n💡 تلميح: تأكد من اتصال الإنترنت وأن متصفحك يسمح بالاتصال بخدمة التعرف الصوتي.'
+            err + '\n\nتلميح: تأكد من اتصال الإنترنت وأن متصفحك يسمح بالاتصال بخدمة التعرف الصوتي.'
           );
         }
         setIsListening(false);
@@ -308,7 +308,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
             </span>
           ) : isPaused ? (
             <span className="text-warning font-bold">
-              {lang === 'ar' ? '⏸ متوقف مؤقتاً — تعديل أو استئناف' : '⏸ Paused - Edit or resume'}
+              {lang === 'ar' ? 'متوقف مؤقتاً — تعديل أو استئناف' : 'Paused - Edit or resume'}
             </span>
           ) : (
             <span className="text-muted">

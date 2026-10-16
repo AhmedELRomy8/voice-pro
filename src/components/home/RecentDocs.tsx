@@ -69,7 +69,7 @@ export const RecentDocs: React.FC<RecentDocsProps> = ({
     <section className="vox-recent-section" aria-labelledby="recent-files-heading">
       <div className="vox-recent-header">
         <h2 id="recent-files-heading" className="vox-recent-title">
-          <span>🕒 {t.recentDocuments}</span>
+          <span>{t.recentDocuments}</span>
         </h2>
         {onViewAll && (
           <button className="vox-view-all-link" onClick={onViewAll}>

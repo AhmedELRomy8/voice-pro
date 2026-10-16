@@ -7,7 +7,6 @@ import {
   FileSpreadsheet,
   Clock,
   Settings,
-  CheckCircle2,
   X
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -100,15 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Bottom Status Card */}
+        {/* Bottom Version Tag */}
         <div className="vox-sidebar-footer">
-          <div className="vox-offline-pill">
-            <CheckCircle2 size={15} className="vox-offline-dot" />
-            <div className="vox-offline-info">
-              <span className="vox-offline-title">{t.offlineReady}</span>
-              <span className="vox-offline-sub">{t.localEngine}</span>
-            </div>
-          </div>
           <div className="vox-version-tag">v1.0.0</div>
         </div>
       </aside>

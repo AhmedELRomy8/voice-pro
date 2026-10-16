@@ -9,6 +9,42 @@ function hasArabic(text: string): boolean {
 }
 
 /**
+ * Detects garbled text that pdf.js produced when a scanned/broken PDF
+ * has missing or broken font encodings (missing cMaps / ToUnicode).
+ *
+ * Signature of a garbled Arabic page: the extracted "text" is full of
+ * Latin symbols and Arabic-Indic digits but contains almost NO proper
+ * Arabic letters, plus unmapped glyphs (U+FFFD) or symbol-plane junk.
+ */
+export function looksLikeGarbledPdfText(text: string): boolean {
+  if (!text || text.trim().length < 8) return false;
+
+  // Unmapped characters = definitely broken encoding
+  const replacementCount = (text.match(/\uFFFD/g) || []).length;
+  if (replacementCount > 0) return true;
+
+  // Symbols / box-drawing / private-use junk
+  const symbolCount = (text.match(/[\u2500-\u25FF\u2600-\u27BF\uE000-\uF8FF]/g) || []).length;
+  if (symbolCount / text.length > 0.05) return true;
+
+  // Greek / Cyrillic / math symbols sprinkled inside what should be Arabic text
+  // (a classic symptom of a broken ToUnicode mapping)
+  const alienCount = (text.match(/\u0370-\u03FF\u0400-\u04FF\u2010-\u2027\u2070-\u219F\u2240-\u22FF/g) || []).length;
+  if (alienCount / text.length > 0.03) return true;
+
+  // Arabic-language page with almost no real Arabic letters
+  const arabicLetters = (text.match(/[\u0621-\u064A\u066E-\u06D3]/g) || []).length;
+  const alnum = (text.match(/[A-Za-z0-9\u0660-\u0669]/g) || []).length;
+  const hasArabicIndicDigits = /[\u0660-\u0669]/.test(text);
+
+  if (alnum > 0 && hasArabicIndicDigits && arabicLetters / alnum < 0.15) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Joins text items within a visual row in correct reading order.
  * For Arabic (or mixed) lines we sort by X descending (right → left)
  * so Arabic reads naturally, and add separators only when the item does
@@ -85,6 +121,8 @@ export async function loadPdfDocument(fileOrBuffer: Blob | ArrayBuffer) {
     data: new Uint8Array(arrayBuffer),
     cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/',
     cMapPacked: true,
+    // Standard font data needed to decode text using base-14 standard fonts
+    standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/',
   });
 
   return await loadingTask.promise;
@@ -207,10 +245,15 @@ export async function extractTextAndTablesFromPage(
   }
 
   const fullPageText = lineStrings.join('\n');
+
+  // If pdf.js produced garbled text (broken font encoding in scanned PDFs),
+  // discard it entirely so callers fall back to OCR on the rendered page image.
+  const isGarbled = looksLikeGarbledPdfText(fullPageText);
+
   let table: TableGrid | undefined = undefined;
 
   // If we found at least 2 structured rows with matching cell counts, treat as table
-  if (candidateTableRows.length >= 2) {
+  if (candidateTableRows.length >= 2 && !isGarbled) {
     const firstCount = candidateTableRows[0].cells.length;
     const isConsistent = candidateTableRows.slice(0, 5).some((r) => Math.abs(r.cells.length - firstCount) <= 1);
     if (isConsistent) {
@@ -223,8 +266,8 @@ export async function extractTextAndTablesFromPage(
   }
 
   return {
-    text: fullPageText,
-    hasDigitalText: true,
+    text: isGarbled ? '' : fullPageText,
+    hasDigitalText: !isGarbled,
     table,
   };
 }
@@ -253,10 +296,12 @@ export async function processPdfFile(
     let width = 800;
     let height = 1100;
 
-    // Render page image (always render page 1 for preview; render others if no digital text)
+    // Render page image (always render page 1 for preview; render others for OCR fallback
+    // whenever digital text is missing or garbled — marked by hasDigitalText = false)
     if (i === 1 || !hasDigitalText) {
       try {
-        const rendered = await renderPdfPageToCanvas(pdfDoc, i, 1.5);
+        // Higher scale for pages needing OCR so Arabic glyphs stay readable
+        const rendered = await renderPdfPageToCanvas(pdfDoc, i, hasDigitalText ? 1.5 : 2.5);
         renderedBlob = rendered.blob;
         renderedUrl = rendered.url;
         width = rendered.width;

@@ -250,7 +250,7 @@ export const OcrModal: React.FC<OcrModalProps> = ({
                 {selectedFileName}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
-                {isRtl ? 'تم تحميل الملف ✓' : 'File loaded ✓'}
+                {isRtl ? 'تم تحميل الملف' : 'File loaded'}
               </div>
             </div>
             <button

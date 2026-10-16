@@ -87,7 +87,7 @@ export const TableModal: React.FC<TableModalProps> = ({
         }
         if (result.detectedTables.length > 0) {
           setTable(result.detectedTables[0]);
-          setProgressStatus(isRtl ? 'تم استخراج الجدول بنجاح ✓' : 'Table extracted successfully ✓');
+          setProgressStatus(isRtl ? 'تم استخراج الجدول بنجاح' : 'Table extracted successfully');
         } else if (result.pages.length > 0 && result.pages[0].renderedImageUrl) {
           setProgressStatus(isRtl ? 'جارٍ تحليل الصورة باستخدام OCR...' : 'Analyzing image with OCR...');
           setProgressPercent(70);
@@ -212,7 +212,7 @@ export const TableModal: React.FC<TableModalProps> = ({
                 {selectedFileName}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
-                {isRtl ? 'تم تحميل الملف ✓' : 'File loaded ✓'}
+                {isRtl ? 'تم تحميل الملف' : 'File loaded'}
               </div>
             </div>
             <button

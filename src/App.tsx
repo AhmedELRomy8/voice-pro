@@ -342,8 +342,8 @@ export function App() {
               <div className="vox-greeting-header">
                 <h1 className="vox-greeting-title">
                   {lang === 'ar'
-                    ? `صباح الخير${user?.name ? '، ' + user.name : ''} 👋`
-                    : `Good day${user?.name ? ', ' + user.name : ''} 👋`}
+                    ? `صباح الخير${user?.name ? '، ' + user.name : ''}`
+                    : `Good day${user?.name ? ', ' + user.name : ''}`}
                 </h1>
                 <p className="vox-greeting-sub">
                   {lang === 'ar'
