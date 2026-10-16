@@ -1819,6 +1819,59 @@ body {
 .text-danger { color: var(--danger); }
 .text-purple { color: #8b5cf6; }
 .font-bold { font-weight: 700; }
+.text-primary { color: var(--primary); }
+.text-muted { color: var(--text-muted); }
+
+/* Progress Bar */
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-accent);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #059669);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* Voice Command Banner */
+.vox-command-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: #92400e;
+}
+
+/* Detected Command Row */
+.vox-detected-command-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--text-main);
+  flex-wrap: wrap;
+}
+
+/* Transcription Tools Row */
+.vox-transcription-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 
 /* Responsive adjustments */
 @media (max-width: 900px) {

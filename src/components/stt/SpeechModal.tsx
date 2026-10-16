@@ -223,15 +223,15 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
           <FileDown size={14} /><span>TXT</span>
         </button>
         <button className="btn btn-secondary btn-sm" onClick={handleExportDocx} disabled={!transcriptText && !interimText}>
-          <FileDown size={14} /><span>DOCX</span>
+          <FileDown size={14} /><span>Word</span>
         </button>
       </div>
       <div className="vox-modal-footer-right">
-        <button className="btn btn-secondary" onClick={onClose}>{t.cancel}</button>
+        <button className="btn btn-secondary" onClick={onClose}>{lang === 'ar' ? 'رجوع' : 'Back'}</button>
         {(transcriptText || interimText) && (
           <>
-            <button className="btn btn-secondary" onClick={handleApplyReplace}>{t.replaceEditor}</button>
-            <button className="btn btn-primary" onClick={handleApplyAppend}>{t.appendToEditor}</button>
+            <button className="btn btn-secondary" onClick={handleApplyReplace}>{lang === 'ar' ? 'استبدال في المحرر' : 'Replace'}</button>
+            <button className="btn btn-primary" onClick={handleApplyAppend}>{lang === 'ar' ? 'إلحاق بالمحرر' : 'Append'}</button>
           </>
         )}
       </div>
@@ -303,11 +303,17 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
 
         <div className="vox-stt-status-text">
           {isListening ? (
-            <span className="text-danger font-bold">● Listening & Typing live...</span>
+            <span className="text-danger font-bold">
+              {lang === 'ar' ? '● يستمع ويكتب الآن...' : '● Listening & Typing live...'}
+            </span>
           ) : isPaused ? (
-            <span className="text-warning font-bold">⏸ Paused - Edit or resume</span>
+            <span className="text-warning font-bold">
+              {lang === 'ar' ? '⏸ متوقف مؤقتاً — تعديل أو استئناف' : '⏸ Paused - Edit or resume'}
+            </span>
           ) : (
-            <span className="text-muted">Ready to record</span>
+            <span className="text-muted">
+              {lang === 'ar' ? 'جاهز للتسجيل' : 'Ready to record'}
+            </span>
           )}
         </div>
 
@@ -328,24 +334,24 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
             isPaused ? (
               <>
                 <button className="vox-btn-pill btn-start" onClick={handleResume}>
-                  <Play size={16} /><span>Resume</span>
+                  <Play size={16} /><span>{lang === 'ar' ? 'استئناف' : 'Resume'}</span>
                 </button>
                 <button className="vox-btn-pill btn-stop" onClick={handleStop}>
-                  <Square size={16} /><span>Stop</span>
+                  <Square size={16} /><span>{lang === 'ar' ? 'إيقاف' : 'Stop'}</span>
                 </button>
               </>
             ) : (
               <button className="vox-btn-pill btn-start" onClick={handleStart}>
-                <Play size={16} /><span>Start</span>
+                <Play size={16} /><span>{lang === 'ar' ? 'ابدأ التسجيل' : 'Start'}</span>
               </button>
             )
           ) : (
             <>
               <button className="vox-btn-pill btn-pause" onClick={handlePause}>
-                <Pause size={16} /><span>Pause</span>
+                <Pause size={16} /><span>{lang === 'ar' ? 'إيقاف مؤقت' : 'Pause'}</span>
               </button>
               <button className="vox-btn-pill btn-stop" onClick={handleStop}>
-                <Square size={16} /><span>Stop</span>
+                <Square size={16} /><span>{lang === 'ar' ? 'إيقاف' : 'Stop'}</span>
               </button>
             </>
           )}
@@ -365,7 +371,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
         <div className="vox-interim-box">
           <Sparkles size={16} className="text-primary" />
           <span className="vox-interim-text">
-            {interimText || 'Speak now — words appear here in real time...'}
+            {interimText || (lang === 'ar' ? 'تحدث الآن — الكلمات تظهر هنا فوراً...' : 'Speak now — words appear here in real time...')}
           </span>
         </div>
       )}
@@ -374,7 +380,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
       {detectedCommand && (
         <div className="vox-detected-command-row">
           <div>
-            <strong>Command detected: "{detectedCommand.phrase}"</strong>
+            <strong>{lang === 'ar' ? `تم اكتشاف أمر: "${detectedCommand.phrase}"` : `Command detected: "${detectedCommand.phrase}"`}</strong>
           </div>
           {onExecuteCommand && (
             <button
@@ -384,7 +390,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
                 onClose();
               }}
             >
-              Execute
+              {lang === 'ar' ? 'تنفيذ' : 'Execute'}
             </button>
           )}
         </div>
@@ -393,26 +399,27 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
       {/* Transcription Output Box */}
       <div className="vox-transcription-section">
         <div className="vox-transcription-header">
-          <label className="vox-label">Transcription</label>
+          <label className="vox-label">{lang === 'ar' ? 'النص المحوّل' : 'Transcription'}</label>
           <div className="vox-transcription-tools">
             <button
               className="vox-tool-btn"
               onClick={handleCopy}
               disabled={!transcriptText && !interimText}
-              title="Copy to clipboard"
+              title={lang === 'ar' ? 'نسخ إلى الحافظة' : 'Copy to clipboard'}
             >
               {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
+              <span>{copied ? (lang === 'ar' ? 'تم النسخ' : 'Copied') : (lang === 'ar' ? 'نسخ' : 'Copy')}</span>
             </button>
           </div>
         </div>
 
         <textarea
           className="vox-transcription-textarea"
-          placeholder="Your transcribed text will appear here..."
+          placeholder={lang === 'ar' ? 'النص المحوّل سيظهر هنا...' : 'Your transcribed text will appear here...'}
           value={transcriptText + (interimText ? ` ${interimText}` : '')}
           onChange={(e) => setTranscriptText(e.target.value)}
-          rows={5}
+          rows={6}
+          dir={speechLanguage.startsWith('ar') ? 'rtl' : 'ltr'}
         />
       </div>
     </div>
