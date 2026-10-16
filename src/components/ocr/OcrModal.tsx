@@ -14,7 +14,7 @@ import {
 import { Modal } from '../layout/Modal';
 import { useTranslation } from '../../i18n/useTranslation';
 import { performOcr } from '../../services/ocr/tesseractWorker';
-import { rotateImage } from '../../services/ocr/imageUtils';
+import { rotateImage, upscaleForOcr, enhanceImageContrast } from '../../services/ocr/imageUtils';
 import { exportTextToTxt } from '../../services/export/txtExporter';
 import { generateDocxBlob, downloadBlob } from '../../services/export/docxExporter';
 import { isPdfFile, processPdfFile } from '../../services/pdf/pdfService';
@@ -136,8 +136,10 @@ export const OcrModal: React.FC<OcrModalProps> = ({
         setExtractedText(fullOcrText);
         setConfidence(92);
       } else if (imageSrc) {
-        setProgressStatus(isRtl ? 'جارٍ تحليل وقراءة الصورة...' : 'Analyzing image...');
-        const result = await performOcr(imageSrc, ocrLanguage, (p) => {
+        setProgressStatus(isRtl ? 'جارٍ تحسين الصورة قبل القراءة...' : 'Enhancing image for better accuracy...');
+        const upscaled = await upscaleForOcr(imageSrc);
+        const enhanced = await enhanceImageContrast(upscaled);
+        const result = await performOcr(enhanced, ocrLanguage, (p) => {
           setProgressStatus(p.status);
           setProgressPercent(Math.round(p.progress * 100));
         });

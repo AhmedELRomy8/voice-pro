@@ -59,6 +59,18 @@ export async function performOcr(
   onProgress?: OcrProgressCallback
 ): Promise<OcrResult> {
   const worker = await getTesseractWorker(lang, onProgress);
+
+  // Tune recognizer for Arabic: slower, more accurate page segmentation.
+  // PSM 6 (single uniform block) keeps RTL lines intact; LSTM engine only.
+  try {
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6' as any,
+      preserve_interword_spaces: '1',
+    });
+  } catch {
+    /* parameter tuning is best-effort */
+  }
+
   const result = await worker.recognize(imageSource);
 
   const rawData = result.data as any;
@@ -176,14 +188,46 @@ export async function performOcr(
     }
   }
 
+  // Clean the raw text: fix common Arabic OCR artifacts and caller warnings
+  const cleanedText = cleanOcrText(rawData.text || '');
+
   return {
-    text: rawData.text.trim(),
+    text: cleanedText.trim(),
     confidence: rawData.confidence,
     lines,
     blocks,
     imageWidth: imgWidth,
     imageHeight: imgHeight,
   };
+}
+
+/**
+ * Post-processing for Arabic OCR output:
+ * - Rejoin words broken by line-wrapping artifacts
+ * - Strip stray Latin glyphs Tesseract emits between Arabic words
+ * - Normalize whitespace around Arabic punctuation
+ */
+function cleanOcrText(text: string): string {
+  let out = text;
+
+  // Collapse repeated identical punctuation runs  (e.g. "....", "،،،")
+  out = out.replace(/([.،؛:,!?])\1{2,}/g, '$1');
+
+  // Remove standalone Latin noise characters between Arabic tokens
+  // (keeps legit Latin words which have length > 1)
+  out = out.replace(/(^|\s)[\|\^\[\]{}<>@#~`_](?=\s|$)/g, ' ');
+
+  // Normalize spacing before/after Arabic punctuation
+  out = out.replace(/\s+([،؛؟!.])/g, '$1');
+  out = out.replace(/([،؛؟])(?=\S)/g, '$1 ');
+
+  // Fix Arabic definite-article split artifact "ال ا" → "الا" when OCR split it
+  out = out.replace(/(\S)\s+ال\s+/g, '$1 ال');
+
+  // Collapse 3+ blank lines into one
+  out = out.replace(/\n{3,}/g, '\n\n');
+
+  return out;
 }
 
 export async function terminateOcrWorker(): Promise<void> {

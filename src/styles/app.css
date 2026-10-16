@@ -567,8 +567,32 @@ body {
 }
 
 .vox-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Subtle top-gloss highlight on action cards */
+.vox-card::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.vox-card-arrow {
+  transition: transform 0.18s ease;
+}
+
+.vox-card:hover .vox-card-arrow {
+  transform: translateX(-4px);
+}
+
+[dir="ltr"] .vox-card:hover .vox-card-arrow {
+  transform: translateX(4px);
 }
 
 /* Color Schemes */

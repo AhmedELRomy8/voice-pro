@@ -6,32 +6,54 @@ import {
   FileSpreadsheet,
   ArrowRight,
   ArrowLeft,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Lock
+  ShieldCheck,
+  WifiOff,
+  Zap
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/useTranslation';
-import { loginWithGoogle, loginWithEmail, loginAsGuest, type UserProfile } from '../../services/auth/authService';
+import {
+  loginWithGoogle,
+  loginWithEmail,
+  loginAsGuest,
+  type UserProfile
+} from '../../services/auth/authService';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const { lang, isRtl } = useTranslation();
+  const { lang, isRtl, t } = useTranslation();
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
+  const isAr = lang === 'ar';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
+    setLoginError(null);
     setIsLoadingGoogle(true);
     try {
       const user = await loginWithGoogle();
+      if (!user) {
+        setLoginError(
+          isAr
+            ? 'تعذر تسجيل الدخول عبر Google. حاول مرة أخرى أو استخدم البريد الإلكتروني.'
+            : 'Google sign-in failed. Try again or use email instead.'
+        );
+        return;
+      }
       onLoginSuccess(user);
+    } catch {
+      setLoginError(
+        isAr
+          ? 'تعذر تسجيل الدخول عبر Google. حاول مرة أخرى أو استخدم البريد الإلكتروني.'
+          : 'Google sign-in failed. Try again or use email instead.'
+      );
     } finally {
       setIsLoadingGoogle(false);
     }
@@ -39,108 +61,183 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = await loginWithEmail(email || 'user@voxnote.com');
-    onLoginSuccess(user);
+    setLoginError(null);
+
+    const cleanedEmail = email.trim().toLowerCase();
+    const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedEmail);
+
+    if (!emailLooksValid) {
+      setLoginError(
+        isAr
+          ? 'من فضلك أدخل بريداً إلكترونياً صحيحاً.'
+          : 'Please enter a valid email address.'
+      );
+      return;
+    }
+
+    if (!password || password.length < 4) {
+      setLoginError(
+        isAr
+          ? 'كلمة المرور يجب ألا تقل عن 4 أحرف.'
+          : 'Password must be at least 4 characters.'
+      );
+      return;
+    }
+
+    setIsLoadingEmail(true);
+    try {
+      const user = await loginWithEmail(cleanedEmail);
+      onLoginSuccess(user);
+    } catch {
+      setLoginError(
+        isAr
+          ? 'فشل تسجيل الدخول. حاول مرة أخرى.'
+          : 'Sign in failed. Try again.'
+      );
+    } finally {
+      setIsLoadingEmail(false);
+    }
   };
 
   const handleGuestSignIn = () => {
+    setLoginError(null);
     const user = loginAsGuest();
     onLoginSuccess(user);
   };
 
+  const features = [
+    {
+      icon: Mic,
+      title: isAr ? 'تحويل الصوت إلى نص' : 'Speech to Text',
+      desc: isAr ? 'إملاء فوري والنتيجة تظهر أثناء الكلام' : 'Realtime dictation as you speak',
+      tone: 'speech'
+    },
+    {
+      icon: ImageIcon,
+      title: isAr ? 'استخراج النص من الصور' : 'Image to Text',
+      desc: isAr ? 'OCR عربي وإنجليزي عالي الدقة' : 'High-accuracy AR/EN OCR',
+      tone: 'ocr'
+    },
+    {
+      icon: FileText,
+      title: isAr ? 'تحويل إلى Word' : 'Image to Word',
+      desc: isAr ? 'ملفات DOCX منسقة قابلة للتعديل' : 'Editable, formatted DOCX',
+      tone: 'word'
+    },
+    {
+      icon: FileSpreadsheet,
+      title: isAr ? 'تحويل الجداول إلى Excel' : 'Table to Excel',
+      desc: isAr ? 'كشف الجداول تلقائياً وتصدير XLSX' : 'Auto table detection → XLSX',
+      tone: 'excel'
+    }
+  ];
+
   return (
-    <div className="vox-login-page-wrapper">
-      <div className="vox-login-card">
-        {/* Left Dark Hero Panel */}
-        <div className="vox-login-hero-side">
-          <div className="vox-login-brand">
-            <div className="vox-brand-mark">
-              <span className="wave-bar h-1"></span>
-              <span className="wave-bar h-3"></span>
-              <span className="wave-bar h-2"></span>
-              <span className="wave-bar h-4"></span>
-              <span className="wave-bar h-2"></span>
+    <div className="lx-login-scene" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Ambient decorative blobs */}
+      <div className="lx-blob lx-blob-1" aria-hidden="true" />
+      <div className="lx-blob lx-blob-2" aria-hidden="true" />
+      <div className="lx-blob lx-blob-3" aria-hidden="true" />
+
+      <div className="lx-login-grid">
+        {/* ── Brand showcase side ─────────────────────────────── */}
+        <div className="lx-showcase">
+          <div className="lx-brand-row">
+            <div className="lx-brand-mark" aria-hidden="true">
+              <span className="lx-wave h-1" />
+              <span className="lx-wave h-2" />
+              <span className="lx-wave h-3" />
+              <span className="lx-wave h-4" />
+              <span className="lx-wave h-2" />
             </div>
-            <span className="vox-brand-title-large">VoxNote</span>
+            <span className="lx-brand-name">VoxNote</span>
           </div>
 
-          <div className="vox-login-hero-body">
-            <h1 className="vox-hero-headline">
-              {lang === 'ar' ? 'صوتك. مستنداتك.' : 'Your Voice. Your Documents.'}
+          <div className="lx-showcase-body">
+            <h1 className="lx-hero-title">
+              {isAr ? (
+                <>
+                  صوتك.
+                  <br />
+                  <span className="lx-hero-accent">مستنداتك.</span>
+                </>
+              ) : (
+                <>
+                  Your voice.
+                  <br />
+                  <span className="lx-hero-accent">Your documents.</span>
+                </>
+              )}
             </h1>
-            <p className="vox-hero-tagline">
-              {lang === 'ar'
-                ? 'تحويل الصوت والصور والجداول إلى نصوص وملفات Word وإكسل احترافية — محلياً وأونلاين.'
-                : 'Convert speech, images and tables into clean text and professional files — offline or online.'}
+            <p className="lx-hero-desc">
+              {isAr
+                ? 'حوّل الصوت والصور والـ PDF إلى نصوص نظيفة وملفات Word و Excel احترافية — كل ذلك يعمل داخل جهازك.'
+                : 'Turn speech, images and PDFs into clean text and professional Word & Excel files — all on your device.'}
             </p>
-
-            <div className="vox-hero-features-grid">
-              <div className="vox-hero-feat-item">
-                <div className="vox-hero-feat-icon icon-speech">
-                  <Mic size={18} />
-                </div>
-                <div>
-                  <div className="vox-hero-feat-title">Speech to Text</div>
-                  <div className="vox-hero-feat-desc">Speak, get text</div>
-                </div>
-              </div>
-
-              <div className="vox-hero-feat-item">
-                <div className="vox-hero-feat-icon icon-ocr">
-                  <ImageIcon size={18} />
-                </div>
-                <div>
-                  <div className="vox-hero-feat-title">Image to Text</div>
-                  <div className="vox-hero-feat-desc">Extract from images</div>
-                </div>
-              </div>
-
-              <div className="vox-hero-feat-item">
-                <div className="vox-hero-feat-icon icon-word">
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <div className="vox-hero-feat-title">Image to Word</div>
-                  <div className="vox-hero-feat-desc">Recreate documents</div>
-                </div>
-              </div>
-
-              <div className="vox-hero-feat-item">
-                <div className="vox-hero-feat-icon icon-excel">
-                  <FileSpreadsheet size={18} />
-                </div>
-                <div>
-                  <div className="vox-hero-feat-title">Image to Excel</div>
-                  <div className="vox-hero-feat-desc">Extract tables</div>
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div className="vox-hero-bottom-tag">
-            <span>| Simple • Fast • Offline Ready</span>
+          <ul className="lx-feat-list">
+            {features.map((f) => {
+              const Icon = f.icon;
+              return (
+                <li key={f.title} className={`lx-feat-item tone-${f.tone}`}>
+                  <span className="lx-feat-icon">
+                    <Icon size={17} />
+                  </span>
+                  <span className="lx-feat-text">
+                    <span className="lx-feat-title">{f.title}</span>
+                    <span className="lx-feat-desc">{f.desc}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="lx-trust-row">
+            <span className="lx-trust-chip">
+              <ShieldCheck size={13} />
+              {isAr ? 'خصوصية كاملة' : 'Private by design'}
+            </span>
+            <span className="lx-trust-chip">
+              <WifiOff size={13} />
+              {isAr ? 'يعمل دون إنترنت' : 'Offline ready'}
+            </span>
+            <span className="lx-trust-chip">
+              <Zap size={13} />
+              {isAr ? 'سريع جداً' : 'Blazing fast'}
+            </span>
           </div>
         </div>
 
-        {/* Right Light Auth Panel */}
-        <div className="vox-login-form-side">
-          <div className="vox-auth-box">
-            <h2 className="vox-auth-main-title">
-              {lang === 'ar' ? 'مرحباً بعودتك' : 'Welcome Back'}
-            </h2>
-            <p className="vox-auth-sub-title">
-              {lang === 'ar' ? 'سجل الدخول للمتابعة إلى VoxNote' : 'Sign in to continue to VoxNote'}
+        {/* ── Sign-in side ────────────────────────────────────── */}
+        <div className="lx-auth-side">
+          <div className="lx-auth-card">
+            <div className="lx-auth-mobile-brand">
+              <div className="lx-brand-mark" aria-hidden="true">
+                <span className="lx-wave h-1" />
+                <span className="lx-wave h-2" />
+                <span className="lx-wave h-3" />
+                <span className="lx-wave h-4" />
+                <span className="lx-wave h-2" />
+              </div>
+              <span className="lx-brand-name">VoxNote</span>
+            </div>
+
+            <h2 className="lx-auth-title">{t.welcomeBack}</h2>
+            <p className="lx-auth-sub">
+              {isAr
+                ? 'سجّل الدخول للوصول إلى مستنداتك ومتابعة عملك.'
+                : 'Sign in to access your documents and keep working.'}
             </p>
 
-            {/* Google Authentication Button */}
+            {/* Google */}
             <button
               type="button"
-              className="vox-google-auth-btn"
+              className="lx-google-btn"
               onClick={handleGoogleSignIn}
-              disabled={isLoadingGoogle}
+              disabled={isLoadingGoogle || isLoadingEmail}
             >
-              {/* Google Official SVG Logo */}
-              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -160,68 +257,97 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </svg>
               <span>
                 {isLoadingGoogle
-                  ? (lang === 'ar' ? 'جارٍ تسجيل الدخول...' : 'Signing in...')
-                  : (lang === 'ar' ? 'تسجيل الدخول باستخدام Google' : 'Sign in with Google')}
+                  ? isAr
+                    ? 'جارٍ تسجيل الدخول...'
+                    : 'Signing in...'
+                  : isAr
+                    ? 'المتابعة باستخدام Google'
+                    : 'Continue with Google'}
               </span>
             </button>
 
-            <div className="vox-auth-divider">
-              <span>{lang === 'ar' ? 'أو عبر البريد' : 'or with email'}</span>
+            <div className="lx-divider">
+              <span>{isAr ? 'أو' : 'or'}</span>
             </div>
 
-            {/* Email / Password Form */}
-            <form onSubmit={handleEmailSignIn} className="vox-login-inputs-form">
-              <div className="vox-input-wrap">
+            {/* Email form */}
+            <form onSubmit={handleEmailSignIn} className="lx-email-form" noValidate>
+              <div className="lx-field">
+                <label htmlFor="lx-email" className="lx-field-label">
+                  {isAr ? 'البريد الإلكتروني' : 'Email'}
+                </label>
                 <input
-                  type="text"
-                  className="vox-form-input"
-                  placeholder={lang === 'ar' ? 'اسم المستخدم أو البريد الإلكتروني' : 'Username or Email'}
+                  id="lx-email"
+                  type="email"
+                  className="lx-field-input"
+                  placeholder={isAr ? 'name@example.com' : 'name@example.com'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  dir="ltr"
                 />
               </div>
 
-              <div className="vox-input-wrap password-input-wrap">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className="vox-form-input"
-                  placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="vox-pw-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label="Toggle password"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              <div className="lx-field">
+                <label htmlFor="lx-password" className="lx-field-label">
+                  {isAr ? 'كلمة المرور' : 'Password'}
+                </label>
+                <div className="lx-field-password">
+                  <input
+                    id="lx-password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="lx-field-input"
+                    placeholder={isAr ? '••••••••' : '••••••••'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    className="lx-pw-eye"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
 
-              <button type="submit" className="vox-primary-submit-btn">
-                {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
+              <button
+                type="submit"
+                className="lx-submit-btn"
+                disabled={isLoadingGoogle || isLoadingEmail}
+              >
+                {isLoadingEmail
+                  ? isAr
+                    ? 'جارٍ الدخول...'
+                    : 'Signing in...'
+                  : isAr
+                    ? 'تسجيل الدخول'
+                    : 'Sign in'}
+                <ArrowIcon size={15} />
               </button>
             </form>
 
-            <div className="vox-auth-divider">
-              <span>{lang === 'ar' ? 'أو' : 'or'}</span>
-            </div>
+            {loginError && (
+              <div className="lx-login-error">{loginError}</div>
+            )}
 
-            {/* Continue without account button */}
             <button
               type="button"
-              className="vox-guest-continue-btn"
+              className="lx-guest-btn"
               onClick={handleGuestSignIn}
+              disabled={isLoadingGoogle || isLoadingEmail}
             >
-              <span>{lang === 'ar' ? 'المتابعة بدون حساب' : 'Continue without account'}</span>
-              <ArrowIcon size={16} />
+              {isAr ? 'المتابعة كضيف — بدون حساب' : 'Continue as guest — no account needed'}
+              <ArrowIcon size={14} />
             </button>
 
-            <p className="vox-login-footnote">
-              {lang === 'ar'
-                ? 'ليس لديك حساب؟ يمكنك البدء فوراً والإنجاز بدون أي قيود.'
-                : 'No account? Just start and get things done.'}
+            <p className="lx-auth-note">
+              {isAr
+                ? 'بياناتك تُخزَّن محلياً على جهازك فقط، ولا تُرسل لأي خادم.'
+                : 'Your data is stored locally on your device only — never sent to a server.'}
             </p>
           </div>
         </div>

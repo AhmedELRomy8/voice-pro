@@ -13,6 +13,8 @@ export const translations = {
     actionImageToExcel: 'تحويل الجداول إلى Excel',
     actionImageToExcelDesc: 'كشف الجداول من الصور وملفات PDF وتعديل الخلايا وتصدير XLSX',
     
+    welcomeBack: 'أهلاً بعودتك 👋',
+
     // Header & Navigation
     home: 'الرئيسية',
     newDocument: 'مستند جديد',
@@ -145,6 +147,8 @@ export const translations = {
     actionImageToExcel: 'Image to Excel',
     actionImageToExcelDesc: 'Convert table images or PDF to Excel file.',
     
+    welcomeBack: 'Welcome back 👋',
+
     // Header & Navigation
     home: 'Home',
     newDocument: 'New Document',

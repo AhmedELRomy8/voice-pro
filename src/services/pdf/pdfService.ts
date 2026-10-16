@@ -1,4 +1,43 @@
 import * as pdfjsLib from 'pdfjs-dist';
+
+/**
+ * Detects whether a string contains predominantly Arabic characters
+ * (shared helper to avoid circular imports)
+ */
+function hasArabic(text: string): boolean {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+}
+
+/**
+ * Joins text items within a visual row in correct reading order.
+ * For Arabic (or mixed) lines we sort by X descending (right → left)
+ * so Arabic reads naturally, and add separators only when the item does
+ * not already include a trailing space (Arabic PDFs usually encode
+ * full words per item; inserting spaces between every piece breaks RTL).
+ */
+function joinRowItems(items: any[]): string {
+  const isArabicRow = items.some((it) => hasArabic(it.str || ''));
+  const sorted = [...items].sort((a, b) =>
+    isArabicRow
+      ? b.transform[4] - a.transform[4] // right → left for Arabic rows
+      : a.transform[4] - b.transform[4] // left → right for Latin rows
+  );
+
+  let out = '';
+  for (const item of sorted) {
+    const piece = (item.str || '').trim();
+    if (!piece) continue;
+    if (!out) {
+      out = piece;
+      continue;
+    }
+    const needsSpace = isArabicRow
+      ? !/\s$/.test(out) && !/^\s/.test(piece) && !hasArabic(piece) && !hasArabic(out)
+      : !/\s$/.test(out) && !/^\s/.test(piece);
+    out += (needsSpace ? ' ' : '') + piece;
+  }
+  return out.trim();
+}
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { TableGrid, TableRow, TableCell } from '../../types';
 
@@ -60,7 +99,9 @@ export async function renderPdfPageToCanvas(
   scale = 2.0
 ): Promise<{ canvas: HTMLCanvasElement; blob: Blob; url: string; width: number; height: number }> {
   const page = await pdfDoc.getPage(pageNumber);
-  const viewport = page.getViewport({ scale });
+  // Raise base resolution so Arabic glyphs stay crisp for OCR
+  const effectiveScale = Math.max(scale, 2.0);
+  const viewport = page.getViewport({ scale: effectiveScale });
 
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
@@ -144,15 +185,16 @@ export async function extractTextAndTablesFromPage(
   let rowIdx = 0;
   for (const y of sortedYKeys) {
     const rowItems = rowsMap.get(y)!;
-    // Sort items within row by X coordinate (left to right)
-    rowItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-    const lineText = rowItems.map((it) => it.str).join(' ');
+    // Width-aware tolerance grouping refinement: keep ordering deterministic
+    const lineText = joinRowItems(rowItems);
     lineStrings.push(lineText);
 
     // If a line has multiple distinct horizontal segments separated by space, it might be a table row
     if (rowItems.length >= 2) {
-      const cells: TableCell[] = rowItems.map((it, cellIdx) => ({
+      // Keep table cells in visual left→right order regardless of script
+      const visualCells = [...rowItems].sort((a, b) => a.transform[4] - b.transform[4]);
+      const cells: TableCell[] = visualCells.map((it, cellIdx) => ({
         id: `cell-${rowIdx}-${cellIdx}`,
         value: it.str.trim(),
       }));

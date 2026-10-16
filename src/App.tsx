@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './styles/app.css';
+import './styles/login.css';
 import { Sidebar, type NavigationTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ActionCards } from './components/home/ActionCards';

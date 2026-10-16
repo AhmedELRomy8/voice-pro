@@ -73,6 +73,38 @@ export async function cropImage(dataUrl: string, rect: CropRect): Promise<string
   });
 }
 
+/**
+ * Upscales small images to a target minimum height for better Arabic OCR
+ * (Arabic dots/diacritics need resolution; 1400px is a good floor)
+ */
+export async function upscaleForOcr(dataUrl: string, minHeight = 1400): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (img.height >= minHeight) {
+        resolve(dataUrl);
+        return;
+      }
+      const factor = Math.min(3, minHeight / img.height);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context not available'));
+        return;
+      }
+      canvas.width = Math.round(img.width * factor);
+      canvas.height = Math.round(img.height * factor);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Failed to load image for upscaling'));
+    img.src = dataUrl;
+  });
+}
+
 // Enhance contrast for low-quality scanned documents
 export async function enhanceImageContrast(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
