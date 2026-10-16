@@ -246,7 +246,7 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
       {/* Language & Command mode row */}
       <div className="vox-stt-options-row">
         <div className="vox-stt-lang-group">
-          <label className="vox-label">Language</label>
+          <label className="vox-label">{lang === 'ar' ? 'لغة التحدث:' : 'Language:'}</label>
           <select
             className="vox-select"
             value={speechLanguage}
@@ -255,9 +255,9 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
               if (isListening) handleStop();
             }}
           >
-            <option value="ar-EG">Arabic (Egyptian) - العربية (مصر)</option>
-            <option value="ar-SA">Arabic (Saudi) - العربية (السعودية والخليج)</option>
-            <option value="ar">Arabic (Standard) - العربية (فصحى)</option>
+            <option value="ar-EG">عربي (مصري) - Egyptian Arabic</option>
+            <option value="ar-SA">عربي (خليجي/سعودي) - Gulf Arabic</option>
+            <option value="ar">عربي فصيح - Modern Standard Arabic</option>
             <option value="en-US">English (US)</option>
             <option value="en-GB">English (UK)</option>
           </select>
@@ -423,11 +423,15 @@ export const SpeechModal: React.FC<SpeechModalProps> = ({
       <div className="vox-page-view-card">
         <div className="vox-page-view-header">
           <div className="vox-page-view-title-wrap">
-            <h2 className="vox-page-view-title">Speech to Text</h2>
-            <p className="vox-page-view-sub">Speak clearly and get accurate text.</p>
+            <h2 className="vox-page-view-title">
+              {lang === 'ar' ? 'تحويل الصوت إلى نص' : 'Speech to Text'}
+            </h2>
+            <p className="vox-page-view-sub">
+              {lang === 'ar' ? 'تحدث بوضوح واحصل على النص العربي أو الإنجليزي بدقة فائقة' : 'Speak clearly and get accurate text in real-time'}
+            </p>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={onClose}>
-            {lang === 'ar' ? 'الرجوع للرئيسية' : 'Back to Home'}
+            {lang === 'ar' ? 'الرئيسية' : 'Home'}
           </button>
         </div>
         {mainBody}
