@@ -10,6 +10,13 @@
  */
 
 const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
+
+/**
+ * Public OAuth client ID created in Google Cloud Console (project "VoxNote").
+ * Client IDs are public identifiers (no secret) — safe to embed.
+ * Authorized JavaScript origins: https://ahmedelromy8.github.io, http://localhost:5173
+ */
+export const DEFAULT_GOOGLE_CLIENT_ID = '105039591164-jpipmrj11ev4ehnrbueeav2vh0cl8bge.apps.googleusercontent.com';
 export const GSI_CLIENT_ID_KEY = 'voxnote_gsi_client_id';
 
 export interface GoogleIdClaims {
@@ -48,9 +55,9 @@ declare global {
 
 export function getStoredGoogleClientId(): string {
   try {
-    return localStorage.getItem(GSI_CLIENT_ID_KEY) || '';
+    return localStorage.getItem(GSI_CLIENT_ID_KEY) || DEFAULT_GOOGLE_CLIENT_ID;
   } catch {
-    return '';
+    return DEFAULT_GOOGLE_CLIENT_ID;
   }
 }
 
@@ -165,7 +172,7 @@ export async function renderGoogleSignInButton(
       text: 'continue_with',
       shape: 'pill',
       logo_alignment: 'center',
-      width: 280,
+      width: 300,
       locale: 'ar',
     });
     return null;

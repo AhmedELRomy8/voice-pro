@@ -331,6 +331,15 @@
 /* Google Identity Services slot */
 .lx-gsi-slot {
   width: 100%;
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+}
+
+.lx-gsi-slot iframe {
+  width: 300px !important;
+  height: 44px !important;
+  border: none;
 }
 
 .lx-gsi-fallback {

@@ -40,9 +40,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoadingEmail, setIsLoadingEmail] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [gsiStatus, setGsiStatus] = useState<'loading' | 'ready' | 'no-client-id' | 'failed'>(
-    getStoredGoogleClientId() ? 'loading' : 'no-client-id'
-  );
+  const [gsiStatus, setGsiStatus] = useState<'loading' | 'ready' | 'no-client-id' | 'failed'>('loading');
   const [clientIdInput, setClientIdInput] = useState('');
   const [showClientIdSetup, setShowClientIdSetup] = useState(false);
 
