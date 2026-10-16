@@ -1,18 +1,19 @@
 import React, { useState, useRef } from 'react';
 import {
-  UploadCloud,
+  Upload,
   FileDown,
   Sparkles,
   Layout,
-  AlignRight,
-  AlignLeft,
-  Image as ImageIcon,
-  AlertCircle
+  FileText,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { Modal } from '../layout/Modal';
 import { useTranslation } from '../../i18n/useTranslation';
 import { performOcr } from '../../services/ocr/tesseractWorker';
 import { generateDocxBlob, downloadBlob } from '../../services/export/docxExporter';
+import { isPdfFile, processPdfFile } from '../../services/pdf/pdfService';
 import type { OcrResult, OcrBlock } from '../../types';
 
 interface WordLayoutModalProps {
@@ -26,72 +27,121 @@ export const WordLayoutModal: React.FC<WordLayoutModalProps> = ({
   onClose,
   onApplyToDocument,
 }) => {
-  const { t } = useTranslation();
+  const { t, isRtl } = useTranslation();
+  const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [mode, setMode] = useState<'textOnly' | 'recreateLayout'>('recreateLayout');
-  const [embedOriginal, setEmbedOriginal] = useState<boolean>(true);
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
+  const [isPdf, setIsPdf] = useState<boolean>(false);
+  const [tabMode, setTabMode] = useState<'extract' | 'layout'>('layout');
+  const [ocrLanguage, setOcrLanguage] = useState<string>('ara+eng');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progressStatus, setProgressStatus] = useState<string>('');
-  const [docTitle, setDocTitle] = useState<string>('مستند وورد مستخرج');
+  const [docTitle, setDocTitle] = useState<string>('VoxNote Document');
+  const [extractedContent, setExtractedContent] = useState<string>('');
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedFileRef = useRef<File | null>(null);
 
-  const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('الملف ليس صورة / File is not an image');
-      return;
-    }
+  const handleFileSelect = async (file: File) => {
     setErrorMessage(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setImageSrc(dataUrl);
-      setOcrResult(null);
-    };
-    reader.readAsDataURL(file);
+    setOcrResult(null);
+    setExtractedContent('');
+    selectedFileRef.current = file;
+    setSelectedFileName(file.name);
+    setDocTitle(file.name.replace(/\.[^/.]+$/, ''));
+
+    if (isPdfFile(file)) {
+      setIsPdf(true);
+      setIsProcessing(true);
+      setProgressStatus('جارٍ فحص وتحليل ملف الـ PDF...');
+      try {
+        const result = await processPdfFile(file, (msg) => setProgressStatus(msg));
+        if (result.pages.length > 0 && result.pages[0].renderedImageUrl) {
+          setImageSrc(result.pages[0].renderedImageUrl);
+        }
+        if (result.fullText.trim()) {
+          setExtractedContent(result.fullText.trim());
+        }
+      } catch (err: any) {
+        setErrorMessage(`تعذر قراءة ملف PDF: ${err.message || err}`);
+      } finally {
+        setIsProcessing(false);
+      }
+    } else if (file.type.startsWith('image/')) {
+      setIsPdf(false);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setImageSrc(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setErrorMessage('يرجى اختيار صورة صالحة أو ملف PDF.');
+    }
   };
 
-  const handleProcessImage = async () => {
-    if (!imageSrc) return;
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleProcessAndGenerate = async () => {
+    if (!imageSrc && !selectedFileRef.current) return;
     setIsProcessing(true);
     setErrorMessage(null);
-    setProgressStatus(t.extracting);
+    setProgressStatus('جارٍ استخراج وتنسيق المستند...');
 
     try {
-      const result = await performOcr(imageSrc, 'ara+eng', (p) => {
-        setProgressStatus(p.status);
-      });
-      setOcrResult(result);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'فشل تحليل تخطيط الصورة');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+      let content = extractedContent;
+      let blocks: OcrBlock[] | undefined = undefined;
 
-  const handleExportDocx = async () => {
-    if (!ocrResult && !imageSrc) return;
-    try {
+      if (isPdf && selectedFileRef.current) {
+        const pdfRes = await processPdfFile(selectedFileRef.current);
+        content = pdfRes.fullText || content;
+
+        // If digital text was empty, run OCR
+        if (!content.trim() && pdfRes.pages.length > 0) {
+          const texts: string[] = [];
+          for (let i = 0; i < pdfRes.pages.length; i++) {
+            const page = pdfRes.pages[i];
+            if (page.renderedImageUrl) {
+              const ocr = await performOcr(page.renderedImageUrl, ocrLanguage as any);
+              if (ocr.text) texts.push(`--- صفحة ${i + 1} ---\n` + ocr.text);
+            }
+          }
+          content = texts.join('\n\n');
+        }
+      } else if (imageSrc) {
+        const result = await performOcr(imageSrc, ocrLanguage as any, (p) => {
+          setProgressStatus(p.status);
+        });
+        setOcrResult(result);
+        content = result.text;
+        blocks = result.blocks;
+      }
+
+      setExtractedContent(content);
+
+      // Generate DOCX blob
       const blob = await generateDocxBlob({
         title: docTitle,
-        content: ocrResult ? ocrResult.text : '',
-        blocks: mode === 'recreateLayout' && ocrResult ? ocrResult.blocks : undefined,
-        originalImageBase64: embedOriginal && imageSrc ? imageSrc : undefined,
-        recreateLayout: mode === 'recreateLayout',
+        content: content,
+        blocks: tabMode === 'layout' ? blocks : undefined,
       });
-      downloadBlob(blob, `${docTitle || 'document'}.docx`);
-    } catch (err: any) {
-      setErrorMessage(`فشل تصدير ملف Word: ${err.message}`);
-    }
-  };
 
-  const handleApply = () => {
-    if (ocrResult) {
-      onApplyToDocument(docTitle, ocrResult.text, ocrResult.blocks);
+      downloadBlob(blob, `${docTitle}.docx`);
+
+      onApplyToDocument(docTitle, content, blocks);
       onClose();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'فشل تحويل المستند إلى وورد');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -99,203 +149,135 @@ export const WordLayoutModal: React.FC<WordLayoutModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={t.wordModalTitle}
+      title="Image to Word"
       size="large"
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-          <button className="btn btn-secondary" onClick={onClose}>
-            {t.cancel}
-          </button>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            {ocrResult && (
-              <>
-                <button className="btn btn-secondary" onClick={handleApply}>
-                  {t.appendToEditor}
-                </button>
-                <button className="btn btn-primary" onClick={handleExportDocx}>
-                  <FileDown size={16} />
-                  <span>{t.exportToWordButton}</span>
-                </button>
-              </>
-            )}
+        <div className="vox-modal-footer-row">
+          <div className="vox-modal-footer-left">
+            <button className="btn btn-secondary" onClick={onClose}>
+              Back
+            </button>
+          </div>
+          <div className="vox-modal-footer-right">
+            <button
+              className="btn btn-primary"
+              onClick={handleProcessAndGenerate}
+              disabled={(!imageSrc && !selectedFileRef.current) || isProcessing}
+            >
+              <FileDown size={16} />
+              <span>{isProcessing ? 'Generating...' : 'Next / Export Word'}</span>
+            </button>
           </div>
         </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {/* Mode Selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <div
-            onClick={() => setMode('recreateLayout')}
-            style={{
-              padding: '1rem',
-              border: `2px solid ${mode === 'recreateLayout' ? 'var(--primary)' : 'var(--border-light)'}`,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: mode === 'recreateLayout' ? 'var(--primary-light)' : 'var(--bg-card)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.35rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: mode === 'recreateLayout' ? 'var(--primary)' : 'inherit' }}>
-              <Layout size={18} />
-              <span>{t.modeRecreateLayout}</span>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              استخدام إحداثيات OCR لإعادة بناء العناوين، المحاذاة، وتباعد الفقرات.
-            </p>
-          </div>
+      <div className="vox-screen-container">
+        <p className="vox-screen-subtitle">Convert image or PDF to an editable Word document.</p>
 
-          <div
-            onClick={() => setMode('textOnly')}
-            style={{
-              padding: '1rem',
-              border: `2px solid ${mode === 'textOnly' ? 'var(--primary)' : 'var(--border-light)'}`,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: mode === 'textOnly' ? 'var(--primary-light)' : 'var(--bg-card)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.35rem',
+        {/* Sub-Tabs: Extract Text | Recreate Layout */}
+        <div className="vox-subtabs-row">
+          <button
+            className={`vox-subtab-btn ${tabMode === 'extract' ? 'active' : ''}`}
+            onClick={() => setTabMode('extract')}
+          >
+            <FileText size={16} />
+            <span>Extract Text</span>
+          </button>
+          <button
+            className={`vox-subtab-btn ${tabMode === 'layout' ? 'active' : ''}`}
+            onClick={() => setTabMode('layout')}
+          >
+            <Layout size={16} />
+            <span>Recreate Layout</span>
+          </button>
+        </div>
+
+        {/* Drag & Drop Box */}
+        <div
+          className="vox-dropzone"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/png,image/jpeg,image/webp,image/bmp,application/pdf"
+            onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+          />
+          <div className="vox-dropzone-icon">
+            <Upload size={32} />
+          </div>
+          <div className="vox-dropzone-title">Drag & drop an image or PDF here</div>
+          <div className="vox-dropzone-or">or</div>
+          <button
+            type="button"
+            className="vox-choose-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: mode === 'textOnly' ? 'var(--primary)' : 'inherit' }}>
-              <AlignRight size={18} />
-              <span>{t.modeTextOnly}</span>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              استخراج النصوص كفقرات متتالية مع دعم العربية RTL والإنجليزية LTR.
-            </p>
+            Choose File
+          </button>
+          <div className="vox-dropzone-formats">
+            Supported formats: PNG, JPG, JPEG, PDF
           </div>
         </div>
 
-        {/* Options */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>عنوان المستند:</label>
+        {/* Options Row */}
+        <div className="vox-options-bar">
+          <div className="vox-lang-select-group">
+            <label className="vox-label">Language</label>
+            <select
+              className="vox-select"
+              value={ocrLanguage}
+              onChange={(e) => setOcrLanguage(e.target.value)}
+            >
+              <option value="ara">Arabic (Default) - العربية</option>
+              <option value="eng">English - الإنجليزية</option>
+              <option value="ara+eng">Arabic + English - عربي وإنجليزي</option>
+            </select>
+          </div>
+
+          <div className="vox-lang-select-group">
+            <label className="vox-label">Document Title</label>
             <input
               type="text"
-              className="search-input"
+              className="vox-text-input"
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
-              placeholder="اسم الملف في وورد..."
             />
           </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={embedOriginal}
-              onChange={(e) => setEmbedOriginal(e.target.checked)}
-            />
-            <ImageIcon size={15} />
-            <span>{t.embedOriginalImage}</span>
-          </label>
         </div>
 
-        {/* Upload or Preview */}
-        {!imageSrc ? (
-          <div
-            className="dropzone"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files?.[0]) handleFileSelect(e.dataTransfer.files[0]);
-            }}
-          >
-            <UploadCloud size={44} style={{ color: 'var(--primary)' }} />
-            <div>
-              <p style={{ fontWeight: 600 }}>{t.dragDropImage}</p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t.supportedFormats}</p>
+        {/* Preview box */}
+        {imageSrc && (
+          <div className="vox-preview-card">
+            <div className="vox-preview-header">
+              <label className="vox-label">Preview: {selectedFileName}</label>
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-            />
+            <div className="vox-preview-img-container">
+              <img src={imageSrc} alt="Preview" className="vox-preview-img" />
+            </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {!ocrResult ? (
-              <div style={{ textAlign: 'center', padding: '1rem' }}>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleProcessImage}
-                  disabled={isProcessing}
-                  style={{ padding: '0.75rem 2rem' }}
-                >
-                  <Sparkles size={16} />
-                  <span>{isProcessing ? progressStatus : 'تحليل التخطيط واستخراج Word'}</span>
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>{t.layoutPreview}:</h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    عدد الفقرات/الكتل المكتشفة: {ocrResult.blocks.length}
-                  </span>
-                </div>
+        )}
 
-                <div
-                  style={{
-                    maxHeight: '320px',
-                    overflowY: 'auto',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '1.25rem',
-                    backgroundColor: 'var(--bg-muted)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.85rem',
-                  }}
-                >
-                  {ocrResult.blocks.map((block, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        backgroundColor: 'white',
-                        border: '1px solid var(--border-light)',
-                        borderRadius: 'var(--radius-sm)',
-                        textAlign: block.isRtl ? 'right' : 'left',
-                        direction: block.isRtl ? 'rtl' : 'ltr',
-                      }}
-                    >
-                      {block.isHeading && (
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            backgroundColor: 'var(--primary-light)',
-                            color: 'var(--primary)',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            padding: '0.1rem 0.4rem',
-                            borderRadius: '4px',
-                            marginBottom: '0.35rem',
-                          }}
-                        >
-                          عنوان / Heading
-                        </span>
-                      )}
-                      <p style={{ fontWeight: block.isHeading ? 700 : 400, fontSize: block.isHeading ? '1.1rem' : '0.95rem' }}>
-                        {block.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {isProcessing && (
+          <div className="vox-progress-container">
+            <div className="vox-progress-label">
+              <span>{progressStatus}</span>
+            </div>
+            <div className="progress-bar-container">
+              <div className="progress-bar-fill" style={{ width: '85%' }} />
+            </div>
           </div>
         )}
 
         {errorMessage && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger)', fontSize: '0.85rem' }}>
-            <AlertCircle size={16} />
+          <div className="vox-error-box">
+            <AlertCircle size={18} />
             <span>{errorMessage}</span>
           </div>
         )}

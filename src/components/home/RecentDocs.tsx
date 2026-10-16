@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, FileText, Trash2, ExternalLink, Download } from 'lucide-react';
+import { FileText, FileSpreadsheet, MoreVertical, Trash2, Download, ExternalLink } from 'lucide-react';
 import type { DocumentItem } from '../../types';
 import { useTranslation } from '../../i18n/useTranslation';
 import { generateDocxBlob, downloadBlob } from '../../services/export/docxExporter';
@@ -9,25 +9,18 @@ interface RecentDocsProps {
   documents: DocumentItem[];
   onOpenDoc: (doc: DocumentItem) => void;
   onDeleteDoc: (id: string) => void;
+  onViewAll?: () => void;
 }
 
 export const RecentDocs: React.FC<RecentDocsProps> = ({
   documents,
   onOpenDoc,
   onDeleteDoc,
+  onViewAll,
 }) => {
   const { t, lang } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [docToDelete, setDocToDelete] = useState<string | null>(null);
-
-  const filteredDocs = documents.filter((doc) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      doc.title.toLowerCase().includes(q) ||
-      doc.content.toLowerCase().includes(q)
-    );
-  });
 
   const handleExportQuick = async (doc: DocumentItem) => {
     const filename = `${doc.title || 'document'}.${doc.type === 'excel' ? 'xlsx' : 'docx'}`;
@@ -45,94 +38,129 @@ export const RecentDocs: React.FC<RecentDocsProps> = ({
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    try {
-      return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-EG' : 'en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(new Date(timestamp));
-    } catch {
-      return new Date(timestamp).toLocaleDateString();
+  const formatRelativeTime = (timestamp: number) => {
+    const diffMs = Date.now() - timestamp;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (lang === 'ar') {
+      if (diffHours < 1) return 'معدل منذ لحظات';
+      if (diffHours < 24) return `معدل منذ ${diffHours} ${diffHours === 1 ? 'ساعة' : 'ساعات'}`;
+      return `معدل منذ ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'}`;
+    } else {
+      if (diffHours < 1) return 'Modified just now';
+      if (diffHours < 24) return `Modified ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+      return `Modified ${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    }
+  };
+
+  const getFileBadge = (type: string) => {
+    switch (type) {
+      case 'excel':
+        return { icon: FileSpreadsheet, bg: '#107c41', text: 'xlsx' };
+      case 'word':
+        return { icon: FileText, bg: '#185abd', text: 'docx' };
+      default:
+        return { icon: FileText, bg: '#334155', text: 'txt' };
     }
   };
 
   return (
-    <section className="documents-section" aria-labelledby="recent-docs-heading">
-      <div className="section-header">
-        <h2 id="recent-docs-heading" className="section-title">
-          <FileText size={20} />
-          <span>{t.recentDocuments}</span>
+    <section className="vox-recent-section" aria-labelledby="recent-files-heading">
+      <div className="vox-recent-header">
+        <h2 id="recent-files-heading" className="vox-recent-title">
+          <span>🕒 {t.recentDocuments}</span>
         </h2>
-
-        <div className="search-wrapper" style={{ maxWidth: '280px' }}>
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder={t.searchPlaceholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label={t.searchPlaceholder}
-          />
-        </div>
+        {onViewAll && (
+          <button className="vox-view-all-link" onClick={onViewAll}>
+            {lang === 'ar' ? 'عرض الكل' : 'View all'}
+          </button>
+        )}
       </div>
 
-      <div className="documents-card">
-        {filteredDocs.length === 0 ? (
-          <div className="doc-list-empty">
+      <div className="vox-recent-card">
+        {documents.length === 0 ? (
+          <div className="vox-recent-empty">
             <FileText size={36} style={{ color: 'var(--text-subtle)' }} />
             <p>{t.noDocuments}</p>
           </div>
         ) : (
-          filteredDocs.map((doc) => (
-            <div key={doc.id} className="doc-item">
-              <div className="doc-info" onClick={() => onOpenDoc(doc)}>
-                <div className="doc-title" title={doc.title}>
-                  {doc.title || t.editorTitlePlaceholder}
-                </div>
-                <div className="doc-meta">
-                  <span className="doc-type-badge">{doc.type}</span>
-                  <span>{formatDate(doc.updatedAt)}</span>
-                  <span>•</span>
-                  <span>
-                    {doc.content
-                      ? `${doc.content.slice(0, 50)}${doc.content.length > 50 ? '...' : ''}`
-                      : '—'}
-                  </span>
-                </div>
-              </div>
+          <div className="vox-recent-list">
+            {documents.slice(0, 5).map((doc) => {
+              const badge = getFileBadge(doc.type);
+              const BadgeIcon = badge.icon;
+              const ext = doc.type === 'excel' ? '.xlsx' : doc.type === 'word' ? '.docx' : '.txt';
+              const displayName = doc.title.endsWith(ext) ? doc.title : `${doc.title}${ext}`;
 
-              <div className="doc-actions">
-                <button
-                  className="btn btn-secondary btn-icon"
-                  onClick={() => handleExportQuick(doc)}
-                  title={`${doc.type === 'excel' ? t.exportXlsx : t.exportDocx}`}
-                >
-                  <Download size={16} />
-                </button>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => onOpenDoc(doc)}
-                  title={t.openDoc}
-                >
-                  <ExternalLink size={14} />
-                  <span>{t.openDoc}</span>
-                </button>
-                <button
-                  className="btn btn-secondary btn-icon"
-                  style={{ color: 'var(--danger)' }}
-                  onClick={() => setDocToDelete(doc.id)}
-                  title={t.deleteDoc}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          ))
+              return (
+                <div key={doc.id} className="vox-recent-row">
+                  <div className="vox-recent-main" onClick={() => onOpenDoc(doc)}>
+                    <div 
+                      className="vox-recent-type-icon" 
+                      style={{ backgroundColor: badge.bg }}
+                    >
+                      <BadgeIcon size={18} color="#ffffff" />
+                    </div>
+                    <div className="vox-recent-text">
+                      <span className="vox-recent-name">{displayName}</span>
+                      <span className="vox-recent-time">{formatRelativeTime(doc.updatedAt)}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions 3-dots menu */}
+                  <div className="vox-recent-options-container">
+                    <button
+                      className="vox-options-trigger"
+                      onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
+                      title="Options"
+                      aria-label="Options"
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+
+                    {activeMenuId === doc.id && (
+                      <div className="vox-dropdown-menu">
+                        <button
+                          className="vox-dropdown-item"
+                          onClick={() => {
+                            setActiveMenuId(null);
+                            onOpenDoc(doc);
+                          }}
+                        >
+                          <ExternalLink size={15} />
+                          <span>{t.openDoc}</span>
+                        </button>
+                        <button
+                          className="vox-dropdown-item"
+                          onClick={() => {
+                            setActiveMenuId(null);
+                            handleExportQuick(doc);
+                          }}
+                        >
+                          <Download size={15} />
+                          <span>{doc.type === 'excel' ? 'Export XLSX' : 'Export DOCX'}</span>
+                        </button>
+                        <button
+                          className="vox-dropdown-item text-danger"
+                          onClick={() => {
+                            setActiveMenuId(null);
+                            setDocToDelete(doc.id);
+                          }}
+                        >
+                          <Trash2 size={15} />
+                          <span>{t.deleteDoc}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete Confirmation Modal */}
       {docToDelete && (
         <div className="modal-backdrop" onClick={() => setDocToDelete(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>

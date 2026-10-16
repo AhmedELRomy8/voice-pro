@@ -95,13 +95,14 @@ export interface AppSettings {
   uiLanguage: 'ar' | 'en';
   defaultOcrLanguage: OcrLanguage;
   speechLanguage: 'ar' | 'en' | 'auto';
-  whisperModel: 'whisper-tiny' | 'whisper-base';
+  speechEngine: 'web-speech' | 'device';
   embedOriginalImageInWord: boolean;
+  offlineMode: boolean;
 }
 
 export interface ModelStatus {
-  whisperDownloaded: boolean;
-  whisperModelSizeMB: number;
+  speechReady: boolean;
   tesseractAraDownloaded: boolean;
   tesseractEngDownloaded: boolean;
 }
+

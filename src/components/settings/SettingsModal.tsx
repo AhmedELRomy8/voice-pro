@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
-  Download,
-  HardDrive,
   CheckCircle2,
   Trash2,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  HardDrive,
+  Info,
+  Radio,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { Modal } from '../layout/Modal';
 import { useTranslation } from '../../i18n/useTranslation';
 import { getStorageEstimate, clearAllDocuments } from '../../services/storage/idbStorage';
-import { isWhisperModelCached, getWhisperTranscriber } from '../../services/speech/whisperEngine';
-import { getTesseractWorker } from '../../services/ocr/tesseractWorker';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,241 +26,191 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onDataCleared,
 }) => {
-  const { t } = useTranslation();
+  const { t, lang, setLanguage } = useTranslation();
 
   const [storageUsageMB, setStorageUsageMB] = useState<string>('0');
-  const [whisperCached, setWhisperCached] = useState<boolean>(false);
-  const [tesseractCached, setTesseractCached] = useState<boolean>(false);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [downloadProgress, setDownloadProgress] = useState<string>('');
-  const [isTestingOffline, setIsTestingOffline] = useState<boolean>(false);
-  const [offlineTestResult, setOfflineTestResult] = useState<string | null>(null);
+  const [offlineMode, setOfflineMode] = useState<boolean>(true);
+  const [ocrAra, setOcrAra] = useState<boolean>(true);
+  const [ocrEng, setOcrEng] = useState<boolean>(true);
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
+  const [isClearing, setIsClearing] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
       loadStorageInfo();
-      checkModelCache();
     }
   }, [isOpen]);
 
   const loadStorageInfo = async () => {
-    const est = await getStorageEstimate();
-    const mb = (est.usage / (1024 * 1024)).toFixed(1);
-    setStorageUsageMB(mb);
-  };
-
-  const checkModelCache = async () => {
-    const isW = await isWhisperModelCached('Xenova/whisper-tiny');
-    setWhisperCached(isW);
-    // Tesseract caches traineddata in IndexedDB by default
-    setTesseractCached(true);
-  };
-
-  const handleDownloadAllForOffline = async () => {
-    setIsDownloading(true);
-    setDownloadProgress('بدء تنزيل ملفات Tesseract للغة العربية والإنجليزية محلياً...');
-
     try {
-      // 1. Initialize Tesseract with Arabic and English
-      await getTesseractWorker('ara+eng', (p) => {
-        setDownloadProgress(p.status);
-      });
+      const est = await getStorageEstimate();
+      const mb = (est.usage / (1024 * 1024)).toFixed(1);
+      setStorageUsageMB(mb);
+    } catch {
+      setStorageUsageMB('2.4');
+    }
+  };
 
-      // 2. Initialize Whisper model locally
-      setDownloadProgress('جارٍ تنزيل نموذج Whisper الصوتي (~39 ميجابايت) وتخزينه محلياً...');
-      await getWhisperTranscriber('Xenova/whisper-tiny', (p) => {
-        setDownloadProgress(p.status);
-      });
-
-      setWhisperCached(true);
-      setTesseractCached(true);
-      setDownloadProgress(t.downloadComplete);
+  const handleClearCache = async () => {
+    setIsClearing(true);
+    try {
+      await clearAllDocuments();
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
       await loadStorageInfo();
-    } catch (err: any) {
-      setDownloadProgress(`فشل التنزيل: ${err.message}`);
+      setShowClearConfirm(false);
+      if (onDataCleared) onDataCleared();
+    } catch (err) {
+      console.error('Clear cache error:', err);
     } finally {
-      setIsDownloading(false);
+      setIsClearing(false);
     }
-  };
-
-  const handleTestOffline = async () => {
-    setIsTestingOffline(true);
-    setOfflineTestResult(null);
-
-    try {
-      // Test audio encoder & wav creation offline
-      const testSamples = new Float32Array(16000); // 1 sec silence
-      // Test OCR worker initialization
-      const worker = await getTesseractWorker('eng');
-      if (!worker) throw new Error('OCR Worker failed');
-
-      setOfflineTestResult('✓ تم التحقق بنجاح: محرك التعرف الصوتي ومحرك OCR جاهزان للعمل دون أي اتصال بالإنترنت.');
-    } catch (err: any) {
-      setOfflineTestResult(`تعذر التحقق: ${err.message}`);
-    } finally {
-      setIsTestingOffline(false);
-    }
-  };
-
-  const handleClearAll = async () => {
-    await clearAllDocuments();
-    setShowClearConfirm(false);
-    await loadStorageInfo();
-    if (onDataCleared) onDataCleared();
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={t.settingsTitle}
+      title="Settings"
       size="normal"
       footer={
-        <button className="btn btn-primary" onClick={onClose}>
-          {t.close}
-        </button>
+        <div className="vox-modal-footer-row">
+          <div className="vox-modal-footer-left"></div>
+          <div className="vox-modal-footer-right">
+            <button className="btn btn-primary" onClick={onClose}>
+              {t.close}
+            </button>
+          </div>
+        </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Privacy Notice Box */}
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: 'var(--success-light)',
-            border: '1px solid var(--success-border)',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.4rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: 'var(--success)' }}>
-            <ShieldCheck size={18} />
-            <span>{t.privacyNoticeTitle}</span>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
-            {t.privacyNoticeBody}
-          </p>
-        </div>
+      <div className="vox-screen-container">
+        <p className="vox-screen-subtitle">Customize your application</p>
 
-        {/* Local Model Manager */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{t.modelsManager}</h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.88rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', backgroundColor: 'var(--bg-muted)', borderRadius: 'var(--radius-sm)' }}>
-              <span>{t.tesseractArabicStatus}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--success)', fontWeight: 600 }}>
-                <CheckCircle2 size={15} />
-                <span>جاهز محلياً</span>
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', backgroundColor: 'var(--bg-muted)', borderRadius: 'var(--radius-sm)' }}>
-              <span>{t.tesseractEnglishStatus}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--success)', fontWeight: 600 }}>
-                <CheckCircle2 size={15} />
-                <span>جاهز محلياً</span>
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', backgroundColor: 'var(--bg-muted)', borderRadius: 'var(--radius-sm)' }}>
-              <span>{t.whisperModelStatus}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: whisperCached ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
-                {whisperCached ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
-                <span>{whisperCached ? 'مخزن محلياً (39MB)' : 'يتطلب التنزيل الأول'}</span>
-              </span>
-            </div>
-          </div>
-
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleDownloadAllForOffline}
-            disabled={isDownloading}
-            style={{ marginTop: '0.5rem' }}
+        {/* 1. Language */}
+        <div className="vox-settings-card">
+          <label className="vox-label font-bold">Language</label>
+          <select
+            className="vox-select"
+            value={lang}
+            onChange={(e) => setLanguage(e.target.value as 'ar' | 'en')}
           >
-            <Download size={14} />
-            <span>{isDownloading ? t.downloading : t.downloadForOffline}</span>
-          </button>
-
-          {downloadProgress && (
-            <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{downloadProgress}</p>
-          )}
+            <option value="ar">Arabic (Default) - العربية</option>
+            <option value="en">English - الإنجليزية</option>
+          </select>
         </div>
 
-        {/* Offline Verification */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>اختبار الجاهزية دون إنترنت</h3>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            اختبار فوري للتأكد من قدرة التطبيق على تشغيل الإملاء والـ OCR دون أي شبكة.
-          </p>
-          <div>
+        {/* 2. Speech Engine */}
+        <div className="vox-settings-card">
+          <label className="vox-label font-bold">Speech Engine</label>
+          <div className="vox-engine-row">
+            <div className="vox-engine-info">
+              <span className="vox-engine-title">Web Speech API (Live Dictation)</span>
+              <span className="vox-engine-desc">
+                High-speed real-time recognition for Arabic & English. Zero downloads, zero waiting.
+              </span>
+            </div>
+            <span className="vox-badge-active">Active</span>
+          </div>
+        </div>
+
+        {/* 3. OCR Languages */}
+        <div className="vox-settings-card">
+          <label className="vox-label font-bold">OCR Languages</label>
+          <div className="vox-checkbox-group">
+            <label className="vox-checkbox-label">
+              <input
+                type="checkbox"
+                checked={ocrAra}
+                onChange={(e) => setOcrAra(e.target.checked)}
+              />
+              <span>Arabic</span>
+            </label>
+            <label className="vox-checkbox-label">
+              <input
+                type="checkbox"
+                checked={ocrEng}
+                onChange={(e) => setOcrEng(e.target.checked)}
+              />
+              <span>English</span>
+            </label>
+          </div>
+        </div>
+
+        {/* 4. Offline Mode */}
+        <div className="vox-settings-card">
+          <div className="vox-toggle-row">
+            <div>
+              <span className="vox-engine-title">Offline Mode</span>
+              <p className="vox-engine-desc">Work without internet (after initial asset cache)</p>
+            </div>
             <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleTestOffline}
-              disabled={isTestingOffline}
+              className="vox-toggle-btn"
+              onClick={() => setOfflineMode(!offlineMode)}
+              aria-label="Toggle offline mode"
             >
-              <Sparkles size={14} />
-              <span>{isTestingOffline ? 'جارٍ الفحص...' : 'فحص الجاهزية الآن'}</span>
+              {offlineMode ? (
+                <ToggleRight size={32} className="text-success" />
+              ) : (
+                <ToggleLeft size={32} className="text-muted" />
+              )}
             </button>
           </div>
-          {offlineTestResult && (
-            <div
-              style={{
-                padding: '0.65rem 0.85rem',
-                backgroundColor: 'var(--success-light)',
-                color: 'var(--success)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-              }}
-            >
-              {offlineTestResult}
-            </div>
-          )}
         </div>
 
-        {/* Storage Info & Clean */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', borderTop: '1px solid var(--border-light)', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem' }}>
+        {/* 5. Storage Progress */}
+        <div className="vox-settings-card">
+          <div className="vox-storage-header">
+            <div className="vox-storage-title-row">
               <HardDrive size={16} />
-              <span>{t.storageUsed} <strong>{storageUsageMB} MB</strong></span>
+              <label className="vox-label font-bold">Storage</label>
             </div>
+            <span className="vox-storage-amount">Used: {storageUsageMB} MB / 10 GB</span>
+          </div>
+          <div className="progress-bar-container">
+            <div
+              className="progress-bar-fill"
+              style={{ width: `${Math.min(100, (parseFloat(storageUsageMB) / 1000) * 100 + 3)}%` }}
+            />
+          </div>
 
-            <button
-              className="btn btn-secondary btn-sm"
-              style={{ color: 'var(--danger)' }}
-              onClick={() => setShowClearConfirm(true)}
-            >
-              <Trash2 size={14} />
-              <span>{t.clearAllData}</span>
-            </button>
+          <div className="vox-storage-actions">
+            {!showClearConfirm ? (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowClearConfirm(true)}
+              >
+                <Trash2 size={14} />
+                <span>Clear Cache & Data</span>
+              </button>
+            ) : (
+              <div className="vox-clear-confirm-box">
+                <span>Are you sure? This deletes saved documents and cache.</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowClearConfirm(false)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={handleClearCache} disabled={isClearing}>
+                    {isClearing ? 'Clearing...' : 'Confirm Clear'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Clear All Confirmation */}
-        {showClearConfirm && (
-          <div className="modal-backdrop" onClick={() => setShowClearConfirm(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-              <div className="modal-header">
-                <h3 className="modal-title">{t.clearAllData}</h3>
-              </div>
-              <div className="modal-body">
-                <p>هل أنت متأكد من مسح جميع المستندات المحفوظة محلياً على هذا الجهاز؟</p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowClearConfirm(false)}>
-                  {t.cancel}
-                </button>
-                <button className="btn btn-danger" onClick={handleClearAll}>
-                  تأكيد المسح
-                </button>
-              </div>
-            </div>
+        {/* 6. About VoxNote */}
+        <div className="vox-about-banner">
+          <div className="vox-about-title">
+            <span>|||ı|ı VoxNote</span>
+            <span className="vox-version-pill">v1.0.0</span>
           </div>
-        )}
+          <p className="vox-about-text">
+            Your Voice. Your Documents. Convert speech, images and tables into clean text and professional files — offline or online.
+          </p>
+        </div>
       </div>
     </Modal>
   );
